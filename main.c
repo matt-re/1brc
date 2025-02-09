@@ -54,21 +54,6 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 		val *= 1 - (2 * neg);
 		fprintf(stdout, "name: %.*s temp: %d\n", nname, name, val);
 	}
-#if 0
-	char *s = beg;
-	while (*s++ != '\n');
-	--cur;
-	char *first = beg;
-	int nfirst = (int)(s - first);
-
-	char *last = end;
-	while (*--last != '\n');
-	++last;
-	int nlast = (int)(end - last);
-
-	fprintf(stderr, "beg: %.*s\n", nfirst, first);
-	fprintf(stderr, "end: %.*s\n", nlast, last);
-#endif
 	fwrite(beg, 1, (size_t)(end - beg), stdout);
 	fwrite("\n", 1, 1, stdout);
 }
