@@ -41,7 +41,18 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 		char *num = cur;
 		while (*cur++ != '\n');
 		int nnum = (int)(cur - num) - 1;
-		fprintf(stdout, "name: %.*s temp: %.*s\n", nname, name, nnum, num);
+		int neg = *num == '-';
+		num += neg;
+		nnum -= neg;
+		int val = *num++ - '0';
+		--nnum;
+		if (nnum > 2) {
+			val = (val * 10) + (*num++ - '0');
+		}
+		++num;
+		val = (val * 10) + (*num++ - '0');
+		val *= 1 - (2 * neg);
+		fprintf(stdout, "name: %.*s temp: %d\n", nname, name, val);
 	}
 #if 0
 	char *s = beg;
