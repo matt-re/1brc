@@ -32,6 +32,17 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 	}
 	char *end = buf + nread;
 	while (*--end != '\n');
+
+	char *cur = beg;
+	while (cur < end) {
+		char *name = cur;
+		while (*cur++ != ';');
+		int nname = (int)(cur - name) - 1;
+		char *num = cur;
+		while (*cur++ != '\n');
+		int nnum = (int)(cur - num) - 1;
+		fprintf(stdout, "name: %.*s temp: %.*s\n", nname, name, nnum, num);
+	}
 #if 0
 	char *cur = beg;
 	while (*cur++ != '\n');
