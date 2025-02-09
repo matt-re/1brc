@@ -76,9 +76,14 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 	char *cur = beg;
 	while (cur < end) {
 		char *name = cur;
-		while (*cur++ != ';');
-		int nname = (int)(cur - name) - 1;
-		char *num = cur;
+		unsigned long long hash = FNV1A_OFFSET;
+		while (*cur != ';') {
+			hash ^= (unsigned long long)*cur;
+			hash *= FNV1A_PRIME;
+			++cur;
+		}
+		int nname = (int)(cur - name);
+		char *num = ++cur;
 		while (*cur++ != '\n');
 		int nnum = (int)(cur - num) - 1;
 		int neg = *num == '-';
@@ -92,11 +97,6 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 		++num;
 		val = (val * 10) + (*num++ - '0');
 		val *= 1 - (2 * neg);
-		unsigned long long hash = FNV1A_OFFSET;
-		for (int i = 0; i < nname; i++) {
-			hash ^= (unsigned long long)name[i];
-			hash *= FNV1A_PRIME;
-		}
 		struct station *stn = get_station(name, (unsigned)nname, hash);
 		++stn->cnt;
 		stn->max = stn->max > val ? stn->max : val;
