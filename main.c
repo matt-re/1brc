@@ -1,10 +1,42 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define MAX_THREAD		8
 #define MAX_LINE_LEN		107
 #define DIV_ROUND_UP(a, n)	(((a) + (n) - 1) / (n))
 #define ROUND_UP_LINE(a)	(DIV_ROUND_UP((a), MAX_LINE_LEN) * MAX_LINE_LEN)
+#define MAX_CAPACITY		16384
+#define FNV1A_OFFSET		UINT64_C(14695981039346656037);
+#define FNV1A_PRIME		UINT64_C(1099511628211);
+
+struct station
+{
+	int max;
+	int min;
+	int sum;
+	int cnt;
+	unsigned int nname;
+	char name[100];
+};
+
+struct station stations[MAX_CAPACITY];
+
+static struct station *
+get_station(char *name, unsigned int nname, unsigned long long hash)
+{
+	unsigned long long i = hash & (MAX_CAPACITY - 1);
+	for (;;) {
+		if (!stations[i].cnt) {
+			return &stations[i];
+		}
+		if (stations[i].nname == nname && memcmp(stations[i].name, name, nname) == 0) {
+			return &stations[i];
+		}
+		i = i + 1 == MAX_CAPACITY ? 0 : i + 1;
+	}
+}
 
 static void
 read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
@@ -53,6 +85,26 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 		val = (val * 10) + (*num++ - '0');
 		val *= 1 - (2 * neg);
 		fprintf(stdout, "name: %.*s temp: %d\n", nname, name, val);
+
+		unsigned long long hash = FNV1A_OFFSET;
+		for (int i = 0; i < nname; i++) {
+			hash ^= (unsigned long long)name[i];
+			hash *= FNV1A_PRIME;
+		}
+		struct station *stn = get_station(name, (unsigned)nname, hash);
+		if (stn->cnt) {
+			++stn->cnt;
+			stn->max = stn->max > val ? stn->max : val;
+			stn->min = stn->min < val ? stn->min : val;
+			stn->sum += val;
+		} else {
+			stn->cnt = 1;
+			stn->max = val;
+			stn->min = val;
+			stn->sum = val;
+			memcpy(stn->name, name, nname);
+			stn->nname = (unsigned)nname;
+		}
 	}
 	fwrite(beg, 1, (size_t)(end - beg), stdout);
 	fwrite("\n", 1, 1, stdout);
@@ -84,6 +136,17 @@ main(int argc, char *argv[])
 	if (ntail) {
 		read_lines(buf, nbuf, 1, file);
 	}
+
+	int cnt = 0;
+	for (int i = 0, j = 1; i < MAX_CAPACITY; i++) {
+		if (!stations[i].cnt) continue;
+		cnt += stations[i].cnt;;
+		fprintf(stderr, "%d %.*s %d (%d, %d, %d)\n",
+		        j++, stations[i].nname, stations[i].name,
+			stations[i].cnt,
+			stations[i].min, stations[i].max, stations[i].sum);
+	}
+	fprintf(stderr, "total %d\n", cnt);
 
 	fclose(file);
 end:;
