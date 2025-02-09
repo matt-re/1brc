@@ -102,6 +102,31 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 	}
 }
 
+static int
+compare(const void *a, const void *b)
+{
+	struct station *x = (struct station *)a;
+	struct station *y = (struct station *)b;
+	if (!x->cnt && !y->cnt)
+		return 0;
+	if (!x->cnt)
+		return 1;
+	if (!y->cnt)
+		return 1;
+	char *s1 = x->name;
+	char *s2 = y->name;
+	int n1 = x->nname;
+	int n2 = y->nname;
+	int n = n1 < n2 ? n1 : n2;
+	int cmp = memcmp(s1, s2, (unsigned)n);
+	if (cmp == 0)
+		/* Equal so far, so shorter string is lexicographically
+		 * smaller. Sign is what matters and not the number.
+		 */
+		return n1 - n2;
+	return cmp;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -129,6 +154,7 @@ main(int argc, char *argv[])
 		read_lines(buf, nbuf, 1, file);
 	}
 
+	qsort(stations, MAX_CAPACITY, sizeof stations[0], compare);
 	printf("{");
 	for (int i = 0; i < MAX_CAPACITY; i++) {
 		if (!stations[i].cnt) continue;
