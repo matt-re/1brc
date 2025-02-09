@@ -44,11 +44,11 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 		fprintf(stdout, "name: %.*s temp: %.*s\n", nname, name, nnum, num);
 	}
 #if 0
-	char *cur = beg;
-	while (*cur++ != '\n');
+	char *s = beg;
+	while (*s++ != '\n');
 	--cur;
 	char *first = beg;
-	int nfirst = (int)(cur - first);
+	int nfirst = (int)(s - first);
 
 	char *last = end;
 	while (*--last != '\n');
