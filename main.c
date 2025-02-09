@@ -59,7 +59,7 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 	size_t nread = fread(buf, 1, nbuf, stream);
 	if (nread == 0) return;
 	fseek(stream, -MAX_LINE_LEN, SEEK_CUR); 
-	/* When in batch [1,N) need to start from a partial line from the
+	/* When in batch [1,N] need to start from a partial line from the
 	 * previous batch.
 	 */
 	char *beg;
