@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,12 @@ get_station(char *name, unsigned int nname, unsigned long long hash)
 	unsigned long long i = hash & (MAX_CAPACITY - 1);
 	for (;;) {
 		if (!stations[i].cnt) {
+			stations[i].cnt = 0;
+			stations[i].max = INT_MIN;
+			stations[i].min = INT_MAX;
+			stations[i].sum = 0;
+			memcpy(stations[i].name, name, nname);
+			stations[i].nname = nname;
 			return &stations[i];
 		}
 		if (stations[i].nname == nname && memcmp(stations[i].name, name, nname) == 0) {
@@ -91,19 +98,10 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 			hash *= FNV1A_PRIME;
 		}
 		struct station *stn = get_station(name, (unsigned)nname, hash);
-		if (stn->cnt) {
-			++stn->cnt;
-			stn->max = stn->max > val ? stn->max : val;
-			stn->min = stn->min < val ? stn->min : val;
-			stn->sum += val;
-		} else {
-			stn->cnt = 1;
-			stn->max = val;
-			stn->min = val;
-			stn->sum = val;
-			memcpy(stn->name, name, nname);
-			stn->nname = (unsigned)nname;
-		}
+		++stn->cnt;
+		stn->max = stn->max > val ? stn->max : val;
+		stn->min = stn->min < val ? stn->min : val;
+		stn->sum += val;
 	}
 }
 
