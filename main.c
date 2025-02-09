@@ -85,8 +85,6 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 		++num;
 		val = (val * 10) + (*num++ - '0');
 		val *= 1 - (2 * neg);
-		fprintf(stdout, "name: %.*s temp: %d\n", nname, name, val);
-
 		unsigned long long hash = FNV1A_OFFSET;
 		for (int i = 0; i < nname; i++) {
 			hash ^= (unsigned long long)name[i];
@@ -107,8 +105,6 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 			stn->nname = (unsigned)nname;
 		}
 	}
-	fwrite(beg, 1, (size_t)(end - beg), stdout);
-	fwrite("\n", 1, 1, stdout);
 }
 
 int
@@ -138,16 +134,17 @@ main(int argc, char *argv[])
 		read_lines(buf, nbuf, 1, file);
 	}
 
-	int cnt = 0;
-	for (int i = 0, j = 1; i < MAX_CAPACITY; i++) {
+	printf("{");
+	for (int i = 0; i < MAX_CAPACITY; i++) {
 		if (!stations[i].cnt) continue;
-		cnt += stations[i].cnt;;
-		fprintf(stderr, "%d %.*s %d (%d, %d, %d)\n",
-		        j++, stations[i].nname, stations[i].name,
-			stations[i].cnt,
-			stations[i].min, stations[i].max, stations[i].sum);
+		double avg = (double)stations[i].sum / stations[i].cnt;
+		double min = (double)stations[i].min * 0.1;
+		double max = (double)stations[i].max * 0.1;
+		printf("%.*s=%.1f/%.1f/%.1f, ",
+		        stations[i].nname, stations[i].name, min, avg, max);
 	}
-	fprintf(stderr, "total %d sizeof(struct station) %zu bytes\n", cnt, sizeof(struct station));
+	/* TODO remove ", " from last entry */
+	printf("}\n");
 
 	fclose(file);
 end:;
