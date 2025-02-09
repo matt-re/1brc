@@ -18,7 +18,7 @@ struct station
 	int min;
 	int sum;
 	int cnt;
-	unsigned int nname;
+	int nname;
 	char name[100];
 	char pad[8];
 };
@@ -26,7 +26,7 @@ struct station
 struct station stations[MAX_CAPACITY];
 
 static struct station *
-get_station(char *name, unsigned int nname, unsigned long long hash)
+get_station(char *name, int nname, unsigned long long hash)
 {
 	unsigned long long i = hash & (MAX_CAPACITY - 1);
 	for (;;) {
@@ -39,7 +39,7 @@ get_station(char *name, unsigned int nname, unsigned long long hash)
 			stations[i].nname = nname;
 			return &stations[i];
 		}
-		if (stations[i].nname == nname && memcmp(stations[i].name, name, nname) == 0) {
+		if (stations[i].nname == nname && memcmp(stations[i].name, name, (unsigned)nname) == 0) {
 			return &stations[i];
 		}
 		i = (i + 1) % MAX_CAPACITY;
@@ -59,11 +59,11 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 	size_t nread = fread(buf, 1, nbuf, stream);
 	if (nread == 0) return;
 	fseek(stream, -MAX_LINE_LEN, SEEK_CUR); 
-	/* When in batch [1,N] need to start from a partial line from the
-	 * previous batch.
-	 */
 	char *beg;
 	if (rest) {
+		/* When in batch [1,N] need to start from a partial line from
+		 * the previous batch.
+		 */
 		beg = buf + MAX_LINE_LEN;
 		while (*--beg !='\n');
 		++beg;
@@ -83,25 +83,22 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 			++cur;
 		}
 		int nname = (int)(cur - name);
-		char *num = ++cur;
-		while (*cur++ != '\n');
-		int nnum = (int)(cur - num) - 1;
-		int neg = *num == '-';
-		num += neg;
-		nnum -= neg;
-		int val = *num++ - '0';
-		--nnum;
-		if (nnum > 2) {
-			val = (val * 10) + (*num++ - '0');
+		++cur;
+		int neg = *cur == '-';
+		cur += neg;
+		int num = *cur++ - '0';
+		if (*cur != '.') {
+			num = (num * 10) + (*cur++ - '0');
 		}
-		++num;
-		val = (val * 10) + (*num++ - '0');
-		val *= 1 - (2 * neg);
-		struct station *stn = get_station(name, (unsigned)nname, hash);
+		++cur;
+		num = (num * 10) + (*cur++ - '0');
+		num *= 1 - (2 * neg);
+		++cur;
+		struct station *stn = get_station(name, nname, hash);
 		++stn->cnt;
-		stn->max = stn->max > val ? stn->max : val;
-		stn->min = stn->min < val ? stn->min : val;
-		stn->sum += val;
+		stn->max = stn->max > num ? stn->max : num;
+		stn->min = stn->min < num ? stn->min : num;
+		stn->sum += num;
 	}
 }
 
