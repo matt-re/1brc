@@ -19,6 +19,7 @@ struct station
 	int cnt;
 	unsigned int nname;
 	char name[100];
+	char pad[8];
 };
 
 struct station stations[MAX_CAPACITY];
@@ -146,7 +147,7 @@ main(int argc, char *argv[])
 			stations[i].cnt,
 			stations[i].min, stations[i].max, stations[i].sum);
 	}
-	fprintf(stderr, "total %d\n", cnt);
+	fprintf(stderr, "total %d sizeof(struct station) %zu bytes\n", cnt, sizeof(struct station));
 
 	fclose(file);
 end:;
