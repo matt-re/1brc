@@ -8,8 +8,6 @@
 #define READ_SIZE		4096
 #define MAX_THREAD		8
 #define MAX_LINE_LEN		107
-#define DIV_ROUND_UP(a, n)	(((a) + (n) - 1) / (n))
-#define ROUND_UP_LINE(a)	(DIV_ROUND_UP((a), MAX_LINE_LEN) * MAX_LINE_LEN)
 #define MAX_CAPACITY		16384
 #define FNV1A_OFFSET		UINT64_C(14695981039346656037)
 #define FNV1A_PRIME		UINT64_C(1099511628211)
@@ -167,9 +165,6 @@ compare(const void *a, const void *b)
 	int n = n1 < n2 ? n1 : n2;
 	int cmp = memcmp(s1, s2, (unsigned)n);
 	if (cmp == 0)
-		/* Equal so far, so shorter string is lexicographically
-		 * smaller. Sign is what matters and not the number.
-		 */
 		return n1 - n2;
 	return cmp;
 }
@@ -223,7 +218,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Make sure a batch can read at least one whole line. */
-	size_t nbatch  = ROUND_UP_LINE(nfile / MAX_THREAD);
+	size_t nbatch = (nfile / MAX_THREAD + MAX_LINE_LEN - 1) / MAX_LINE_LEN * MAX_LINE_LEN;
 	/* How many extra threads [0,MAX_THREAD-1] */
 	size_t nthread = nfile / nbatch;
 	size_t offset = 0;
