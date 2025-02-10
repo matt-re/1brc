@@ -24,11 +24,11 @@ struct station
 	char pad[8];
 };
 
-static struct station stations[MAX_CAPACITY];
-static char readbuffer[READ_SIZE];
+static struct station g_stations[MAX_CAPACITY];
+static char g_readbuffers[READ_SIZE];
 
 static struct station *
-get_station(char *name, int nname, unsigned long long hash)
+get_station(char *name, int nname, unsigned long long hash, struct station *stations)
 {
 	unsigned long long i = hash & (MAX_CAPACITY - 1);
 	for (;;) {
@@ -49,10 +49,10 @@ get_station(char *name, int nname, unsigned long long hash)
 }
 
 static size_t
-read_lines(char *buf, size_t len, int rest)
+read_lines(char *buf, size_t len, int seek, struct station *stations)
 {
 	char *beg;
-	if (rest) {
+	if (seek) {
 		beg = buf + MAX_LINE_LEN;
 		while (*--beg !='\n');
 		++beg;
@@ -62,7 +62,6 @@ read_lines(char *buf, size_t len, int rest)
 	char *end = buf + len;
 	while (*--end != '\n');
 	++end;
-
 	char *cur = beg;
 	while (cur < end) {
 		char *name = cur;
@@ -84,7 +83,7 @@ read_lines(char *buf, size_t len, int rest)
 		num = (num * 10) + (*cur++ - '0');
 		num *= 1 - (2 * neg);
 		++cur;
-		struct station *stn = get_station(name, nname, hash);
+		struct station *stn = get_station(name, nname, hash, stations);
 		++stn->cnt;
 		stn->max = stn->max > num ? stn->max : num;
 		stn->min = stn->min < num ? stn->min : num;
@@ -94,31 +93,31 @@ read_lines(char *buf, size_t len, int rest)
 }
 
 static void
-process_batch(size_t len, int rest, FILE *stream)
+process_batch(char *buf, size_t nbuf, size_t len, int seek, FILE *stream, struct station *stations)
 {
 	size_t left = 0;
 	for (;;) {
 		if (!len) {
 			break;
 		}
-		size_t cap = sizeof(readbuffer) - left;
+		size_t cap = nbuf - left;
 		size_t amount = cap < len ? cap : len;
-		size_t nread = fread(readbuffer + left, 1, amount, stream);
+		size_t nread = fread(buf + left, 1, amount, stream);
 		if (!nread) {
 			break;
 		}
 		len -= nread;
 		size_t n = nread + left;
-		left = read_lines(readbuffer, n, rest);
+		left = read_lines(buf, n, seek, stations);
 		if (left) {
-			memmove(readbuffer, readbuffer + n - left, left);
+			memmove(buf, buf + n - left, left);
 		}
-		rest = 0;
+		seek = 0;
 	}
 }
 
 static void
-process_file(char *filename, size_t len, size_t offset)
+process_file(char *filename, char *buf, size_t nbuf, size_t len, size_t offset, struct station *stations)
 {
 	FILE *fp = fopen(filename, "rb");
 	if (!fp)
@@ -134,7 +133,7 @@ process_file(char *filename, size_t len, size_t offset)
 		fseek(fp, (ssize_t)(offset - MAX_LINE_LEN), SEEK_SET);
 		len += MAX_LINE_LEN;
 	}
-	process_batch(len, offset > 0, fp);
+	process_batch(buf, nbuf, len, offset > 0, fp, stations);
 	fclose(fp);
 }
 
@@ -192,22 +191,21 @@ main(int argc, char *argv[])
 	size_t ntail   = ROUND_UP_LINE(nfile - nbatch * nthread);
 	size_t offset = 0;
 	for (size_t i = 0; i < nthread; i++) {
-		process_file(filename, nbatch, offset);
+		process_file(filename, g_readbuffers, sizeof g_readbuffers, nbatch, offset, g_stations);
 		offset += nbatch;
 	}
 	if (ntail) {
-		process_file(filename, nbatch, offset);
+		process_file(filename, g_readbuffers, sizeof g_readbuffers, nbatch, offset, g_stations);
 	}
 
-	qsort(stations, MAX_CAPACITY, sizeof stations[0], compare);
+	qsort(g_stations, MAX_CAPACITY, sizeof g_stations[0], compare);
 	printf("{");
 	for (int i = 0; i < MAX_CAPACITY; i++) {
-		if (!stations[i].cnt) continue;
-		double avg = (double)stations[i].sum / stations[i].cnt;
-		double min = (double)stations[i].min * 0.1;
-		double max = (double)stations[i].max * 0.1;
-		printf("%.*s=%.1f/%.1f/%.1f, ",
-		        stations[i].nname, stations[i].name, min, avg, max);
+		if (!g_stations[i].cnt) continue;
+		double avg = (double)g_stations[i].sum / g_stations[i].cnt;
+		double min = (double)g_stations[i].min * 0.1;
+		double max = (double)g_stations[i].max * 0.1;
+		printf("%.*s=%.1f/%.1f/%.1f, ", g_stations[i].nname, g_stations[i].name, min, avg, max);
 	}
 	/* TODO remove ", " from last entry */
 	printf("}\n");
