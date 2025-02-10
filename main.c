@@ -96,8 +96,24 @@ read_lines(char *buf, size_t len, int seek, struct station *stations)
 }
 
 static void
-process_batch(char *buf, size_t nbuf, size_t len, int seek, FILE *stream, struct station *stations)
+process(char *filename, char *buf, size_t nbuf, size_t len, size_t offset, struct station *stations)
 {
+	FILE *fp = fopen(filename, "rb");
+	if (!fp) {
+		return;
+	}
+	/* Each batch after first needs to contain the characters from the
+	 * previous batch to handle a line being split across batches. The
+	 * current batch will only read up to the last \n character, which
+	 * means some characters in the current batch will be ignored. The next
+	 * batch will read characters from the end of the previous batch, at
+	 * most one extea whole line.
+	 */
+	int seek = offset > 0;
+	if (seek) {
+		fseek(fp, (ssize_t)(offset - MAX_LINE_LEN), SEEK_SET);
+		len += MAX_LINE_LEN;
+	}
 	size_t left = 0;
 	for (;;) {
 		if (!len) {
@@ -105,7 +121,7 @@ process_batch(char *buf, size_t nbuf, size_t len, int seek, FILE *stream, struct
 		}
 		size_t cap = nbuf - left;
 		size_t amount = cap < len ? cap : len;
-		size_t nread = fread(buf + left, 1, amount, stream);
+		size_t nread = fread(buf + left, 1, amount, fp);
 		if (!nread) {
 			break;
 		}
@@ -117,26 +133,6 @@ process_batch(char *buf, size_t nbuf, size_t len, int seek, FILE *stream, struct
 		}
 		seek = 0;
 	}
-}
-
-static void
-process_file(char *filename, char *buf, size_t nbuf, size_t len, size_t offset, struct station *stations)
-{
-	FILE *fp = fopen(filename, "rb");
-	if (!fp)
-		return;
-	/* Each batch after first needs to contain the characters from the
-	 * previous batch to handle a line being split across batches. The
-	 * current batch will only read up to the last \n character, which
-	 * means some characters in the current batch will be ignored. The next
-	 * batch will read characters from the end of the previous batch, at
-	 * most one extea whole line.
-	 */
-	if (offset) {
-		fseek(fp, (ssize_t)(offset - MAX_LINE_LEN), SEEK_SET);
-		len += MAX_LINE_LEN;
-	}
-	process_batch(buf, nbuf, len, offset > 0, fp, stations);
 	fclose(fp);
 }
 
@@ -211,12 +207,12 @@ main(int argc, char *argv[])
 	size_t nthread = nfile / nbatch;
 	size_t offset = 0;
 	for (size_t i = 0; i < nthread; i++) {
-		process_file(filename, g_readbuffers_mt[i], sizeof g_readbuffers_mt[i], nbatch, offset, g_stations_mt[i]);
+		process(filename, g_readbuffers_mt[i], sizeof g_readbuffers_mt[i], nbatch, offset, g_stations_mt[i]);
 		offset += nbatch;
 	}
 	size_t ntail = nfile - nbatch * nthread;
 	if (ntail) {
-		process_file(filename, g_readbuffer, sizeof g_readbuffer, ntail, offset, g_stations);
+		process(filename, g_readbuffer, sizeof g_readbuffer, ntail, offset, g_stations);
 	}
 
 	for (size_t i = 0; i < nthread; i++) {
