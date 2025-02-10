@@ -49,7 +49,7 @@ get_station(char *name, int nname, unsigned long long hash)
 }
 
 static size_t
-read_lines(char *buf, size_t len, size_t rest)
+read_lines(char *buf, size_t len, int rest)
 {
 	/* Each batch after first needs to contain the characters from the
 	 * previous batch to handle a line being split across batches. The
@@ -101,7 +101,7 @@ read_lines(char *buf, size_t len, size_t rest)
 }
 
 static void
-process_batch(size_t len, size_t rest, FILE *stream)
+process_batch(size_t len, int rest, FILE *stream)
 {
 	size_t left = 0;
 	for (;;) {
@@ -161,12 +161,14 @@ main(int argc, char *argv[])
 
 	/* Make sure a batch can read at least one whole line. */
 	size_t nbatch  = ROUND_UP_LINE(nfile / MAX_THREAD);
+	/* How many extra threads [0,MAX_THREAD-1] */
 	size_t nthread = nfile / nbatch;
 	size_t ntail   = ROUND_UP_LINE(nfile - nbatch * nthread);
-
-	process_batch(nbatch, 0, file);
-	for (size_t i = 1; i < nthread; i++) {
-		process_batch(nbatch + MAX_LINE_LEN, 1, file);
+	if (nthread) {
+		process_batch(nbatch, 0, file);
+		for (size_t i = 1; i < nthread; i++) {
+			process_batch(nbatch + MAX_LINE_LEN, 1, file);
+		}
 	}
 	if (ntail) {
 		process_batch(nbatch + MAX_LINE_LEN, 1, file);
