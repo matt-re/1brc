@@ -25,7 +25,10 @@ struct station
 };
 
 static struct station g_stations[MAX_CAPACITY];
-static char g_readbuffers[READ_SIZE];
+static char g_readbuffer[READ_SIZE];
+
+static struct station g_stations_mt[MAX_THREAD][MAX_CAPACITY];
+static char g_readbuffers_mt[MAX_THREAD][READ_SIZE];
 
 static struct station *
 get_station(char *name, int nname, unsigned long long hash, struct station *stations)
@@ -175,6 +178,24 @@ get_file_size(char *file)
 	return size;
 }
 
+static void
+merge(struct station *dst, struct station *src)
+{
+	for (int i = 0; i < MAX_CAPACITY; i++) {
+		if (!src[i].cnt) continue;
+		unsigned long long hash = FNV1A_OFFSET;
+		for (int s = 0; s < src[i].nname; s++) {
+			hash ^= (unsigned long long)src[i].name[s];
+			hash *= FNV1A_PRIME;
+		}
+		struct station *d = get_station(src[i].name, src[i].nname, hash, dst);
+		d->cnt += src[i].cnt;
+		d->max = d->max > src[i].max ? d->max : src[i].max;
+		d->min = d->min < src[i].min ? d->min : src[i].min;
+		d->sum += src[i].sum;
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -190,14 +211,17 @@ main(int argc, char *argv[])
 	size_t nthread = nfile / nbatch;
 	size_t offset = 0;
 	for (size_t i = 0; i < nthread; i++) {
-		process_file(filename, g_readbuffers, sizeof g_readbuffers, nbatch, offset, g_stations);
+		process_file(filename, g_readbuffers_mt[i], sizeof g_readbuffers_mt[i], nbatch, offset, g_stations_mt[i]);
 		offset += nbatch;
 	}
 	size_t ntail = nfile - nbatch * nthread;
 	if (ntail) {
-		process_file(filename, g_readbuffers, sizeof g_readbuffers, ntail, offset, g_stations);
+		process_file(filename, g_readbuffer, sizeof g_readbuffer, ntail, offset, g_stations);
 	}
 
+	for (size_t i = 0; i < nthread; i++) {
+		merge(g_stations, g_stations_mt[i]);
+	}
 	qsort(g_stations, MAX_CAPACITY, sizeof g_stations[0], compare);
 	printf("{");
 	for (int i = 0; i < MAX_CAPACITY; i++) {
