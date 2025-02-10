@@ -51,13 +51,6 @@ get_station(char *name, int nname, unsigned long long hash)
 static size_t
 read_lines(char *buf, size_t len, int rest)
 {
-	/* Each batch after first needs to contain the characters from the
-	 * previous batch to handle a line being split across batches. The
-	 * current batch will only read up to the last \n character, which
-	 * means some characters in the current batch will be ignored. The next
-	 * batch will read characters from the end of the previous batch, at
-	 * most one extea whole line.
-	 */
 	char *beg;
 	if (rest) {
 		beg = buf + MAX_LINE_LEN;
@@ -122,7 +115,27 @@ process_batch(size_t len, int rest, FILE *stream)
 		}
 		rest = 0;
 	}
-	fseek(stream, -MAX_LINE_LEN, SEEK_CUR);
+}
+
+static void
+process_file(char *filename, size_t len, size_t offset)
+{
+	FILE *fp = fopen(filename, "rb");
+	if (!fp)
+		return;
+	/* Each batch after first needs to contain the characters from the
+	 * previous batch to handle a line being split across batches. The
+	 * current batch will only read up to the last \n character, which
+	 * means some characters in the current batch will be ignored. The next
+	 * batch will read characters from the end of the previous batch, at
+	 * most one extea whole line.
+	 */
+	if (offset) {
+		fseek(fp, (ssize_t)(offset - MAX_LINE_LEN), SEEK_SET);
+		len += MAX_LINE_LEN;
+	}
+	process_batch(len, offset > 0, fp);
+	fclose(fp);
 }
 
 static int
@@ -150,28 +163,40 @@ compare(const void *a, const void *b)
 	return cmp;
 }
 
+static size_t
+get_file_size(char *file)
+{
+	FILE *fp = fopen(file, "rb");
+	if (!fp)
+		return (size_t)-1;
+	fseek(fp, 0, SEEK_END);
+	size_t size = (size_t)ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	fclose(fp);
+	return size;
+}
+
 int
 main(int argc, char *argv[])
 {
-	FILE *file = fopen(argc > 1 ? argv[1] : "measurements.txt", "rb");
-	if (!file) goto end;
-	fseek(file, 0, SEEK_END);
-	size_t nfile = (size_t)ftell(file);
-	fseek(file, 0, SEEK_SET);
+	char *filename = argc > 1 ? argv[1] : "measurements.txt";
+	size_t nfile = get_file_size(filename);
+	if (nfile == (size_t)-1) {
+		goto end;
+	}
 
 	/* Make sure a batch can read at least one whole line. */
 	size_t nbatch  = ROUND_UP_LINE(nfile / MAX_THREAD);
 	/* How many extra threads [0,MAX_THREAD-1] */
 	size_t nthread = nfile / nbatch;
 	size_t ntail   = ROUND_UP_LINE(nfile - nbatch * nthread);
-	if (nthread) {
-		process_batch(nbatch, 0, file);
-		for (size_t i = 1; i < nthread; i++) {
-			process_batch(nbatch + MAX_LINE_LEN, 1, file);
-		}
+	size_t offset = 0;
+	for (size_t i = 0; i < nthread; i++) {
+		process_file(filename, nbatch, offset);
+		offset += nbatch;
 	}
 	if (ntail) {
-		process_batch(nbatch + MAX_LINE_LEN, nthread > 0, file);
+		process_file(filename, nbatch, offset);
 	}
 
 	qsort(stations, MAX_CAPACITY, sizeof stations[0], compare);
@@ -186,8 +211,6 @@ main(int argc, char *argv[])
 	}
 	/* TODO remove ", " from last entry */
 	printf("}\n");
-
-	fclose(file);
 end:;
 }
 
