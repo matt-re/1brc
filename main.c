@@ -188,14 +188,14 @@ main(int argc, char *argv[])
 	size_t nbatch  = ROUND_UP_LINE(nfile / MAX_THREAD);
 	/* How many extra threads [0,MAX_THREAD-1] */
 	size_t nthread = nfile / nbatch;
-	size_t ntail   = ROUND_UP_LINE(nfile - nbatch * nthread);
 	size_t offset = 0;
 	for (size_t i = 0; i < nthread; i++) {
 		process_file(filename, g_readbuffers, sizeof g_readbuffers, nbatch, offset, g_stations);
 		offset += nbatch;
 	}
+	size_t ntail = nfile - nbatch * nthread;
 	if (ntail) {
-		process_file(filename, g_readbuffers, sizeof g_readbuffers, nbatch, offset, g_stations);
+		process_file(filename, g_readbuffers, sizeof g_readbuffers, ntail, offset, g_stations);
 	}
 
 	qsort(g_stations, MAX_CAPACITY, sizeof g_stations[0], compare);
