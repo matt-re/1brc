@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,11 +25,23 @@ struct station
 	char pad[8];
 };
 
+struct thread_data
+{
+	char *fname;
+	struct station *stn;
+	char *buf;
+	size_t nbuf;
+	size_t len;
+	size_t off;
+};
+
 static struct station g_stations[MAX_CAPACITY];
 static char g_readbuffer[READ_SIZE];
 
 static struct station g_stations_mt[MAX_THREAD][MAX_CAPACITY];
 static char g_readbuffers_mt[MAX_THREAD][READ_SIZE];
+static pthread_t g_threads[MAX_THREAD];
+static struct thread_data g_thread_data[MAX_THREAD];
 
 static struct station *
 get_station(char *name, int nname, unsigned long long hash, struct station *stations)
@@ -192,6 +205,14 @@ merge(struct station *dst, struct station *src)
 	}
 }
 
+static void *
+thread_start(void *arg)
+{
+	struct thread_data *td = arg;
+	process(td->fname, td->buf, td->nbuf, td->len, td->off, td->stn);
+	return arg;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -207,7 +228,15 @@ main(int argc, char *argv[])
 	size_t nthread = nfile / nbatch;
 	size_t offset = 0;
 	for (size_t i = 0; i < nthread; i++) {
-		process(filename, g_readbuffers_mt[i], sizeof g_readbuffers_mt[i], nbatch, offset, g_stations_mt[i]);
+		g_thread_data[i] = (struct thread_data){
+			.fname = filename,
+			.buf   = g_readbuffers_mt[i],
+			.nbuf  = sizeof g_readbuffers_mt[i],
+			.len   = nbatch,
+			.off   = offset,
+			.stn   = g_stations_mt[i]
+		};
+		pthread_create(&g_threads[i], NULL, thread_start, &g_thread_data[i]);
 		offset += nbatch;
 	}
 	size_t ntail = nfile - nbatch * nthread;
@@ -216,6 +245,7 @@ main(int argc, char *argv[])
 	}
 
 	for (size_t i = 0; i < nthread; i++) {
+		pthread_join(g_threads[i], NULL);
 		merge(g_stations, g_stations_mt[i]);
 	}
 	qsort(g_stations, MAX_CAPACITY, sizeof g_stations[0], compare);
