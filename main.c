@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 		}
 	}
 	if (ntail) {
-		process_batch(nbatch + MAX_LINE_LEN, 1, file);
+		process_batch(nbatch + MAX_LINE_LEN, nthread > 0, file);
 	}
 
 	qsort(stations, MAX_CAPACITY, sizeof stations[0], compare);
