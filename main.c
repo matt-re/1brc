@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define READ_SIZE		4096
 #define MAX_THREAD		8
 #define MAX_LINE_LEN		107
 #define DIV_ROUND_UP(a, n)	(((a) + (n) - 1) / (n))
@@ -23,7 +24,8 @@ struct station
 	char pad[8];
 };
 
-struct station stations[MAX_CAPACITY];
+static struct station stations[MAX_CAPACITY];
+static char readbuffer[READ_SIZE];
 
 static struct station *
 get_station(char *name, int nname, unsigned long long hash)
@@ -46,8 +48,8 @@ get_station(char *name, int nname, unsigned long long hash)
 	}
 }
 
-static void
-read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
+static size_t
+read_lines(char *buf, size_t len, size_t rest)
 {
 	/* Each batch after first needs to contain the characters from the
 	 * previous batch to handle a line being split across batches. The
@@ -56,22 +58,17 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 	 * batch will read characters from the end of the previous batch, at
 	 * most one extea whole line.
 	 */
-	size_t nread = fread(buf, 1, nbuf, stream);
-	if (nread == 0) return;
-	fseek(stream, -MAX_LINE_LEN, SEEK_CUR); 
 	char *beg;
 	if (rest) {
-		/* When in batch [1,N] need to start from a partial line from
-		 * the previous batch.
-		 */
 		beg = buf + MAX_LINE_LEN;
 		while (*--beg !='\n');
 		++beg;
 	} else {
 		beg = buf;
 	}
-	char *end = buf + nread;
+	char *end = buf + len;
 	while (*--end != '\n');
+	++end;
 
 	char *cur = beg;
 	while (cur < end) {
@@ -100,6 +97,32 @@ read_lines(char *buf, size_t nbuf, size_t rest, FILE *stream)
 		stn->min = stn->min < num ? stn->min : num;
 		stn->sum += num;
 	}
+	return (size_t)((buf + len) - end);
+}
+
+static void
+process_batch(size_t len, size_t rest, FILE *stream)
+{
+	size_t left = 0;
+	for (;;) {
+		if (!len) {
+			break;
+		}
+		size_t cap = sizeof(readbuffer) - left;
+		size_t amount = cap < len ? cap : len;
+		size_t nread = fread(readbuffer + left, 1, amount, stream);
+		if (!nread) {
+			break;
+		}
+		len -= nread;
+		size_t n = nread + left;
+		left = read_lines(readbuffer, n, rest);
+		if (left) {
+			memmove(readbuffer, readbuffer + n - left, left);
+		}
+		rest = 0;
+	}
+	fseek(stream, -MAX_LINE_LEN, SEEK_CUR);
 }
 
 static int
@@ -141,17 +164,12 @@ main(int argc, char *argv[])
 	size_t nthread = nfile / nbatch;
 	size_t ntail   = ROUND_UP_LINE(nfile - nbatch * nthread);
 
-	size_t nbuf = nbatch + MAX_LINE_LEN;
-	/* TODO Replace with fixed size buffer and perform multiple
-	 * reads per batch if requried.
-	 */
-	char *buf = malloc(nbuf);
-	read_lines(buf, nbatch, 0, file);
+	process_batch(nbatch, 0, file);
 	for (size_t i = 1; i < nthread; i++) {
-		read_lines(buf, nbuf, 1, file);
+		process_batch(nbatch + MAX_LINE_LEN, 1, file);
 	}
 	if (ntail) {
-		read_lines(buf, nbuf, 1, file);
+		process_batch(nbatch + MAX_LINE_LEN, 1, file);
 	}
 
 	qsort(stations, MAX_CAPACITY, sizeof stations[0], compare);
