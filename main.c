@@ -110,7 +110,7 @@ read_lines(char *buf, size_t len, int seek, struct station *stations)
 }
 
 static void
-process(char *filename, char *buf, size_t nbuf, size_t len, size_t offset, struct station *stations)
+process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct station *stations)
 {
 	FILE *fp = fopen(filename, "rb");
 	if (!fp) {
@@ -133,8 +133,8 @@ process(char *filename, char *buf, size_t nbuf, size_t len, size_t offset, struc
 		if (!len) {
 			break;
 		}
-		size_t cap = nbuf - left;
-		size_t amount = cap < len ? cap : len;
+		size_t avail = cap - left;
+		size_t amount = avail < len ? avail : len;
 		size_t nread = fread(buf + left, 1, amount, fp);
 		if (!nread) {
 			break;
