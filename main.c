@@ -6,7 +6,10 @@
 #include <string.h>
 
 #define READ_SIZE	(1 << 22)
+#ifndef MAX_THREAD
+/* set using value from `sysctl -n machdep.cpu.thread_count` */
 #define MAX_THREAD	8
+#endif /* MAX_THREAD */
 #define MAX_LINE_LEN	107
 #define MAX_CAPACITY	16384
 #define FNV1A_OFFSET	UINT64_C(14695981039346656037)
