@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define READ_SIZE	4096
+#define READ_SIZE	65536
 #define MAX_THREAD	8
 #define MAX_LINE_LEN	107
 #define MAX_CAPACITY	16384
