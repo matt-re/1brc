@@ -177,7 +177,6 @@ get_file_size(char *file)
 		return (size_t)-1;
 	fseek(fp, 0, SEEK_END);
 	size_t size = (size_t)ftell(fp);
-	fseek(fp, 0, SEEK_SET);
 	fclose(fp);
 	return size;
 }
@@ -238,9 +237,10 @@ main(int argc, char *argv[])
 	if (ntail) {
 		process(filename, g_readbuffer, sizeof g_readbuffer, ntail, offset, g_stations);
 	}
-
 	for (size_t i = 0; i < nthread; i++) {
 		pthread_join(g_threads[i], NULL);
+	}
+	for (size_t i = 0; i < nthread; i++) {
 		merge(g_stations, g_stations_mt[i]);
 	}
 	qsort(g_stations, MAX_CAPACITY, sizeof g_stations[0], compare);
