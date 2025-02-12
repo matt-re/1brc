@@ -32,7 +32,7 @@ struct thread_data
 	char *fname;
 	struct station *stn;
 	char *buf;
-	size_t nbuf;
+	size_t cap;
 	size_t len;
 	size_t off;
 };
@@ -205,7 +205,7 @@ static void *
 thread_start(void *arg)
 {
 	struct thread_data *td = arg;
-	process(td->fname, td->buf, td->nbuf, td->len, td->off, td->stn);
+	process(td->fname, td->buf, td->cap, td->len, td->off, td->stn);
 	return arg;
 }
 
@@ -221,7 +221,7 @@ dowork(char *filename, size_t nfile)
 		g_thread_data[i] = (struct thread_data){
 			.fname = filename,
 			.buf   = g_readbuffers[i],
-			.nbuf  = sizeof g_readbuffers[i],
+			.cap  = sizeof g_readbuffers[i],
 			.len   = nbatch,
 			.off   = offset,
 			.stn   = g_stations[i]
