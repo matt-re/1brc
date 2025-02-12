@@ -175,7 +175,7 @@ get_file_size(char *file)
 {
 	FILE *fp = fopen(file, "rb");
 	if (!fp)
-		return (size_t)-1;
+		return 0;
 	fseek(fp, 0, SEEK_END);
 	size_t size = (size_t)ftell(fp);
 	fclose(fp);
@@ -257,9 +257,6 @@ main(int argc, char *argv[])
 {
 	char *filename = argc > 1 ? argv[1] : "measurements.txt";
 	size_t nfile = get_file_size(filename);
-	if (nfile == (size_t)-1) {
-		goto end;
-	}
 	struct timeval timebeg;
 	struct timeval timeend;
 	gettimeofday(&timebeg, NULL);
@@ -269,6 +266,5 @@ main(int argc, char *argv[])
 	long microseconds = timeend.tv_usec - timebeg.tv_usec;
 	double elapsed = seconds + microseconds * 1e-6;
 	fprintf(stderr, "%.3f seconds\n", elapsed);
-end:;
 }
 
