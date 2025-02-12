@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #define READ_SIZE	(1 << 22)
 #ifndef MAX_THREAD
@@ -211,15 +212,9 @@ thread_start(void *arg)
 	return arg;
 }
 
-int
-main(int argc, char *argv[])
+static void
+dowork(char *filename, size_t nfile)
 {
-	char *filename = argc > 1 ? argv[1] : "measurements.txt";
-	size_t nfile = get_file_size(filename);
-	if (nfile == (size_t)-1) {
-		goto end;
-	}
-
 	/* Make sure a batch can read at least one whole line. */
 	size_t nbatch = (nfile / MAX_THREAD + MAX_LINE_LEN - 1) / MAX_LINE_LEN * MAX_LINE_LEN;
 	/* How many extra threads [0,MAX_THREAD-1] */
@@ -258,6 +253,25 @@ main(int argc, char *argv[])
 	}
 	/* TODO remove ", " from last entry */
 	printf("}\n");
+}
+
+int
+main(int argc, char *argv[])
+{
+	char *filename = argc > 1 ? argv[1] : "measurements.txt";
+	size_t nfile = get_file_size(filename);
+	if (nfile == (size_t)-1) {
+		goto end;
+	}
+	struct timeval timebeg;
+	struct timeval timeend;
+	gettimeofday(&timebeg, NULL);
+	dowork(filename, nfile);
+	gettimeofday(&timeend, NULL);
+	long seconds = timeend.tv_sec - timebeg.tv_sec;
+	long microseconds = timeend.tv_usec - timebeg.tv_usec;
+	double elapsed = seconds + microseconds * 1e-6;
+	fprintf(stderr, "%.3f seconds\n", elapsed);
 end:;
 }
 
