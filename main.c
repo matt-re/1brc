@@ -37,11 +37,8 @@ struct thread_data
 	size_t off;
 };
 
-static struct station g_stations[MAX_CAPACITY];
-static char g_readbuffer[READ_SIZE];
-
-static struct station g_stations_mt[MAX_THREAD][MAX_CAPACITY];
-static char g_readbuffers_mt[MAX_THREAD][READ_SIZE];
+static struct station g_stations[MAX_THREAD+1][MAX_CAPACITY];
+static char g_readbuffers[MAX_THREAD+1][READ_SIZE];
 static pthread_t g_threads[MAX_THREAD];
 static struct thread_data g_thread_data[MAX_THREAD];
 
@@ -223,33 +220,33 @@ dowork(char *filename, size_t nfile)
 	for (size_t i = 0; i < nthread; i++) {
 		g_thread_data[i] = (struct thread_data){
 			.fname = filename,
-			.buf   = g_readbuffers_mt[i],
-			.nbuf  = sizeof g_readbuffers_mt[i],
+			.buf   = g_readbuffers[i],
+			.nbuf  = sizeof g_readbuffers[i],
 			.len   = nbatch,
 			.off   = offset,
-			.stn   = g_stations_mt[i]
+			.stn   = g_stations[i]
 		};
 		pthread_create(&g_threads[i], NULL, thread_start, &g_thread_data[i]);
 		offset += nbatch;
 	}
 	size_t ntail = nfile - nbatch * nthread;
 	if (ntail) {
-		process(filename, g_readbuffer, sizeof g_readbuffer, ntail, offset, g_stations);
+		process(filename, g_readbuffers[nthread], sizeof g_readbuffers[nthread], ntail, offset, g_stations[nthread]);
 	}
 	for (size_t i = 0; i < nthread; i++) {
 		pthread_join(g_threads[i], NULL);
 	}
 	for (size_t i = 0; i < nthread; i++) {
-		merge(g_stations, g_stations_mt[i]);
+		merge(g_stations[0], g_stations[i+1]);
 	}
-	qsort(g_stations, MAX_CAPACITY, sizeof g_stations[0], compare);
+	qsort(g_stations[0], MAX_CAPACITY, sizeof g_stations[0][0], compare);
 	printf("{");
-	for (int i = 0; i < MAX_CAPACITY; i++) {
-		if (!g_stations[i].cnt) continue;
-		double avg = (double)g_stations[i].sum / g_stations[i].cnt;
-		double min = (double)g_stations[i].min * 0.1;
-		double max = (double)g_stations[i].max * 0.1;
-		printf("%.*s=%.1f/%.1f/%.1f, ", g_stations[i].nname, g_stations[i].name, min, avg, max);
+	for (size_t i = 0; i < MAX_CAPACITY; i++) {
+		if (!g_stations[0][i].cnt) continue;
+		double avg = (double)g_stations[0][i].sum / g_stations[0][i].cnt;
+		double min = (double)g_stations[0][i].min * 0.1;
+		double max = (double)g_stations[0][i].max * 0.1;
+		printf("%.*s=%.1f/%.1f/%.1f, ", g_stations[0][i].nname, g_stations[0][i].name, min, avg, max);
 	}
 	/* TODO remove ", " from last entry */
 	printf("}\n");
