@@ -188,17 +188,18 @@ static void
 merge(struct station *dst, struct station *src)
 {
 	for (int i = 0; i < MAX_CAPACITY; i++) {
-		if (!src[i].cnt) continue;
+		struct station *s = src + i;
+		if (!s->cnt) continue;
 		unsigned long long hash = FNV1A_OFFSET;
-		for (int s = 0; s < src[i].nname; s++) {
-			hash ^= (unsigned long long)src[i].name[s];
+		for (int c = 0; c < s->nname; c++) {
+			hash ^= (unsigned long long)s->name[c];
 			hash *= FNV1A_PRIME;
 		}
-		struct station *d = get_station(src[i].name, src[i].nname, hash, dst);
-		d->cnt += src[i].cnt;
-		d->max = d->max > src[i].max ? d->max : src[i].max;
-		d->min = d->min < src[i].min ? d->min : src[i].min;
-		d->sum += src[i].sum;
+		struct station *d = get_station(s->name, s->nname, hash, dst);
+		d->cnt += s->cnt;
+		d->max = d->max > s->max ? d->max : s->max;
+		d->min = d->min < s->min ? d->min : s->min;
+		d->sum += s->sum;
 	}
 }
 
