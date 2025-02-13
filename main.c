@@ -182,23 +182,29 @@ get_file_size(char *file)
 	return size;
 }
 
-static void
-merge(struct station *dst, struct station *src)
+static struct station *
+merge(struct station *stations, size_t n)
 {
-	for (int i = 0; i < MAX_CAPACITY; i++) {
-		struct station *s = src + i;
-		if (!s->cnt) continue;
-		unsigned long long hash = FNV1A_OFFSET;
-		for (int c = 0; c < s->nname; c++) {
-			hash ^= (unsigned long long)s->name[c];
-			hash *= FNV1A_PRIME;
+	struct station *dst = stations;
+	struct station *src = dst + MAX_CAPACITY;
+	for (size_t j = 0; j < n; j++) {
+		for (int i = 0; i < MAX_CAPACITY; i++) {
+			struct station *s = src + i;
+			if (!s->cnt) continue;
+			unsigned long long hash = FNV1A_OFFSET;
+			for (int c = 0; c < s->nname; c++) {
+				hash ^= (unsigned long long)s->name[c];
+				hash *= FNV1A_PRIME;
+			}
+			struct station *d = get_station(s->name, s->nname, hash, dst);
+			d->cnt += s->cnt;
+			d->max = d->max > s->max ? d->max : s->max;
+			d->min = d->min < s->min ? d->min : s->min;
+			d->sum += s->sum;
 		}
-		struct station *d = get_station(s->name, s->nname, hash, dst);
-		d->cnt += s->cnt;
-		d->max = d->max > s->max ? d->max : s->max;
-		d->min = d->min < s->min ? d->min : s->min;
-		d->sum += s->sum;
+		src += MAX_CAPACITY;
 	}
+	return dst;
 }
 
 static void *
@@ -236,17 +242,15 @@ dowork(char *filename, size_t nfile)
 	for (size_t i = 0; i < nthread; i++) {
 		pthread_join(g_threads[i], NULL);
 	}
-	for (size_t i = 0; i < nthread; i++) {
-		merge(g_stations[0], g_stations[i+1]);
-	}
-	qsort(g_stations[0], MAX_CAPACITY, sizeof g_stations[0][0], compare);
+	struct station *result = merge(g_stations[0], nthread+1);
+	qsort(result, MAX_CAPACITY, sizeof *result, compare);
 	printf("{");
 	for (size_t i = 0; i < MAX_CAPACITY; i++) {
-		if (!g_stations[0][i].cnt) continue;
-		double avg = (double)g_stations[0][i].sum / g_stations[0][i].cnt;
-		double min = (double)g_stations[0][i].min * 0.1;
-		double max = (double)g_stations[0][i].max * 0.1;
-		printf("%.*s=%.1f/%.1f/%.1f, ", g_stations[0][i].nname, g_stations[0][i].name, min, avg, max);
+		if (!result[i].cnt) continue;
+		double avg = (double)result[i].sum / result[i].cnt;
+		double min = (double)result[i].min * 0.1;
+		double max = (double)result[i].max * 0.1;
+		printf("%.*s=%.1f/%.1f/%.1f, ", result[i].nname, result[i].name, min, avg, max);
 	}
 	/* TODO remove ", " from last entry */
 	printf("}\n");
