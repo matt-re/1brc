@@ -234,9 +234,7 @@ dowork(char *filename, size_t nfile)
 		offset += nbatch;
 	}
 	size_t ntail = nfile - nbatch * nthread;
-	if (ntail) {
-		g_thread_data[nthread-1].len += ntail;
-	}
+	g_thread_data[nthread-1].len += ntail;
 	for (size_t i = 0; i < nthread; i++) {
 		pthread_create(&g_threads[i], NULL, thread_start, &g_thread_data[i]);
 	}
