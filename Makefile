@@ -3,6 +3,17 @@ CFLAGS = -std=c99 -O2 -Wall -Werror -Wextra -pedantic
 CFLAGS += -Wshadow
 CFLAGS += -Wconversion
 CFLAGS += -fstrict-aliasing -Wstrict-aliasing
+
+ifndef MAX_THREAD
+	UNAME := $(shell uname)
+	ifeq ($(UNAME), Darwin)
+		MAX_THREAD=$(shell sysctl -n hw.logicalcpu)
+	endif
+endif
+ifdef MAX_THREAD
+CFLAGS += -DMAX_THREAD=$(MAX_THREAD)
+endif
+
 LDFLAGS = -Wall -pedantic
 
 all: 1brc
