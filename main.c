@@ -37,8 +37,8 @@ struct thread_data
 	size_t off;
 };
 
-static struct station g_stations[MAX_THREAD+1][MAX_CAPACITY];
-static char g_readbuffers[MAX_THREAD+1][READ_SIZE];
+static struct station g_stations[MAX_THREAD][MAX_CAPACITY];
+static char g_readbuffers[MAX_THREAD][READ_SIZE];
 static pthread_t g_threads[MAX_THREAD];
 static struct thread_data g_thread_data[MAX_THREAD];
 
@@ -218,31 +218,32 @@ thread_start(void *arg)
 static void
 dowork(char *filename, size_t nfile)
 {
-	/* Make sure a batch can read at least one whole line. */
-	size_t nbatch = (nfile / MAX_THREAD + MAX_LINE_LEN - 1) / MAX_LINE_LEN * MAX_LINE_LEN;
-	/* How many extra threads [0,MAX_THREAD-1] */
+	size_t nbatch = nfile / MAX_THREAD;
+	nbatch = nbatch < MAX_LINE_LEN ? MAX_LINE_LEN : nbatch;
 	size_t nthread = nfile / nbatch;
 	size_t offset = 0;
 	for (size_t i = 0; i < nthread; i++) {
 		g_thread_data[i] = (struct thread_data){
 			.fname = filename,
 			.buf   = g_readbuffers[i],
-			.cap  = sizeof g_readbuffers[i],
+			.cap   = sizeof g_readbuffers[i],
 			.len   = nbatch,
 			.off   = offset,
 			.stn   = g_stations[i]
 		};
-		pthread_create(&g_threads[i], NULL, thread_start, &g_thread_data[i]);
 		offset += nbatch;
 	}
 	size_t ntail = nfile - nbatch * nthread;
 	if (ntail) {
-		process(filename, g_readbuffers[nthread], sizeof g_readbuffers[nthread], ntail, offset, g_stations[nthread]);
+		g_thread_data[nthread-1].len += ntail;
+	}
+	for (size_t i = 0; i < nthread; i++) {
+		pthread_create(&g_threads[i], NULL, thread_start, &g_thread_data[i]);
 	}
 	for (size_t i = 0; i < nthread; i++) {
 		pthread_join(g_threads[i], NULL);
 	}
-	struct station *result = merge(g_stations[0], nthread+1);
+	struct station *result = merge(g_stations[0], nthread-1);
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
 	printf("{");
 	for (size_t i = 0; i < MAX_CAPACITY; i++) {
