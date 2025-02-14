@@ -221,8 +221,7 @@ dowork(char *filename, size_t nfile)
 	size_t nbatch = nfile / MAX_THREAD;
 	nbatch = nbatch < MAX_LINE_LEN ? MAX_LINE_LEN : nbatch;
 	size_t nthread = nfile / nbatch;
-	size_t offset = 0;
-	for (size_t i = 0; i < nthread; i++) {
+	for (size_t i = 0, offset = 0; i < nthread; i++, offset += nbatch) {
 		g_thread_data[i] = (struct thread_data){
 			.fname = filename,
 			.buf   = g_readbuffers[i],
@@ -231,7 +230,6 @@ dowork(char *filename, size_t nfile)
 			.off   = offset,
 			.stn   = g_stations[i]
 		};
-		offset += nbatch;
 	}
 	size_t ntail = nfile - nbatch * nthread;
 	g_thread_data[nthread-1].len += ntail;
