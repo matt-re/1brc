@@ -80,12 +80,12 @@ read_lines(char *beg, char *end, struct station *stations)
 		++cur;
 		int neg = *cur == '-';
 		cur += neg;
-		int num = *cur++ - '0';
+		int num = (*cur++ - '0') * 10;
 		if (*cur != '.') {
-			num = (num * 10) + (*cur++ - '0');
+			num = (num * 10) + (*cur++ - '0') * 10;
 		}
 		++cur;
-		num = (num * 10) + (*cur++ - '0');
+		num += *cur++ - '0';
 		num *= 1 - (2 * neg);
 		++cur;
 		struct station *stn = get_station(name, nname, hash, stations);
