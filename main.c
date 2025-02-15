@@ -17,13 +17,13 @@
 
 struct station
 {
+	unsigned long long hash;
 	int max;
 	int min;
 	int sum;
 	int cnt;
 	int nname;
 	char name[100];
-	char pad[8];
 };
 
 struct thread_data
@@ -53,9 +53,11 @@ get_station(char *name, int nname, unsigned long long hash, struct station *stat
 			stations[i].sum = 0;
 			memcpy(stations[i].name, name, nname);
 			stations[i].nname = nname;
+			stations[i].hash = hash;
 			return &stations[i];
 		}
-		if (stations[i].nname == nname && memcmp(stations[i].name, name, (unsigned)nname) == 0) {
+		if (stations[i].nname == nname && stations[i].hash == hash &&
+		    memcmp(stations[i].name, name, (unsigned)nname) == 0) {
 			return &stations[i];
 		}
 		i = (i + 1) & (MAX_CAPACITY - 1);
@@ -190,12 +192,7 @@ merge(struct station *stations, size_t n)
 		for (int i = 0; i < MAX_CAPACITY; i++) {
 			struct station *s = src + i;
 			if (!s->cnt) continue;
-			unsigned long long hash = FNV1A_OFFSET;
-			for (int c = 0; c < s->nname; c++) {
-				hash ^= (unsigned long long)s->name[c];
-				hash *= FNV1A_PRIME;
-			}
-			struct station *d = get_station(s->name, s->nname, hash, dst);
+			struct station *d = get_station(s->name, s->nname, s->hash, dst);
 			d->cnt += s->cnt;
 			d->max = d->max > s->max ? d->max : s->max;
 			d->min = d->min < s->min ? d->min : s->min;
