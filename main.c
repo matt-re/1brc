@@ -97,22 +97,19 @@ read_lines(char *beg, char *end, struct station *stations)
 }
 
 static size_t
-read_buffer(char *buf, size_t len, int seek, struct station *stations)
+read_buffer(char *beg, char *end, int seek, struct station *stations)
 {
-	char *beg;
 	/* shift the beginning and end of the buffer to only read whole lines */
 	if (seek) {
-		beg = buf + MAX_LINE_LEN;
+		beg += MAX_LINE_LEN;
 		while (*--beg !='\n');
 		++beg;
-	} else {
-		beg = buf;
 	}
-	char *end = buf + len;
+	char *oldend = end;
 	while (*--end != '\n');
 	++end;
 	read_lines(beg, end, stations);
-	return (size_t)((buf + len) - end);
+	return (size_t)(oldend - end);
 }
 
 static void
@@ -146,10 +143,10 @@ process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct
 			break;
 		}
 		len -= nread;
-		size_t n = nread + left;
-		left = read_buffer(buf, n, seek, stations);
+		char *end = buf + nread + left;
+		left = read_buffer(buf, end, seek, stations);
 		if (left) {
-			memmove(buf, buf + n - left, left);
+			memmove(buf, end - left, left);
 		}
 		seek = 0;
 	}
