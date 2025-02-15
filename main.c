@@ -58,7 +58,7 @@ get_station(char *name, int nname, unsigned long long hash, struct station *stat
 		if (stations[i].nname == nname && memcmp(stations[i].name, name, (unsigned)nname) == 0) {
 			return &stations[i];
 		}
-		i = (i + 1) % MAX_CAPACITY;
+		i = (i + 1) & (MAX_CAPACITY - 1);
 	}
 }
 
