@@ -64,20 +64,9 @@ get_station(char *name, int nname, unsigned long long hash, struct station *stat
 	}
 }
 
-static size_t
-read_lines(char *buf, size_t len, int seek, struct station *stations)
+static void
+read_lines(char *beg, char *end, struct station *stations)
 {
-	char *beg;
-	if (seek) {
-		beg = buf + MAX_LINE_LEN;
-		while (*--beg !='\n');
-		++beg;
-	} else {
-		beg = buf;
-	}
-	char *end = buf + len;
-	while (*--end != '\n');
-	++end;
 	char *cur = beg;
 	while (cur < end) {
 		char *name = cur;
@@ -105,6 +94,24 @@ read_lines(char *buf, size_t len, int seek, struct station *stations)
 		stn->min = stn->min < num ? stn->min : num;
 		stn->sum += num;
 	}
+}
+
+static size_t
+read_buffer(char *buf, size_t len, int seek, struct station *stations)
+{
+	char *beg;
+	/* shift the beginning and end of the buffer to only read whole lines */
+	if (seek) {
+		beg = buf + MAX_LINE_LEN;
+		while (*--beg !='\n');
+		++beg;
+	} else {
+		beg = buf;
+	}
+	char *end = buf + len;
+	while (*--end != '\n');
+	++end;
+	read_lines(beg, end, stations);
 	return (size_t)((buf + len) - end);
 }
 
@@ -140,7 +147,7 @@ process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct
 		}
 		len -= nread;
 		size_t n = nread + left;
-		left = read_lines(buf, n, seek, stations);
+		left = read_buffer(buf, n, seek, stations);
 		if (left) {
 			memmove(buf, buf + n - left, left);
 		}
