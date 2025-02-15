@@ -244,7 +244,7 @@ dowork(char *filename, size_t nfile)
 	printf("{");
 	for (size_t i = 0; i < MAX_CAPACITY; i++) {
 		if (!result[i].cnt) continue;
-		double avg = (double)result[i].sum / result[i].cnt;
+		double avg = (double)result[i].sum / result[i].cnt * 0.1;
 		double min = (double)result[i].min * 0.1;
 		double max = (double)result[i].max * 0.1;
 		printf("%.*s=%.1f/%.1f/%.1f, ", result[i].nname, result[i].name, min, avg, max);
