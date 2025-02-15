@@ -81,14 +81,10 @@ read_lines(char *beg, char *end, struct station *stations)
 		int neg = *cur == '-';
 		cur += neg;
 		int num = (*cur++ - '0') * 10;
-
 		int deca = *cur != '.';
-		if (deca) {
-			num = num * 10;
-			num += (*cur - '0') * 10;
-		}
+		num = num * (1 + 9 * deca);
+		num += (*cur - '0') * 10 * deca;
 		cur += deca;
-
 		++cur;
 		num += *cur++ - '0';
 		num *= 1 - (2 * neg);
