@@ -1,5 +1,6 @@
 #include <limits.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,12 +18,12 @@
 
 struct station
 {
-	unsigned long long hash;
-	int max;
-	int min;
-	int sum;
-	int cnt;
-	int nname;
+	uint64_t hash;
+	int32_t max;
+	int32_t min;
+	int32_t sum;
+	int32_t cnt;
+	int32_t nname;
 	char name[100];
 };
 
@@ -42,9 +43,9 @@ static pthread_t g_threads[MAX_THREAD];
 static struct data g_data[MAX_THREAD];
 
 static struct station *
-find(char *name, int nname, unsigned long long hash, struct station *stn)
+find(char *name, int32_t nname, uint64_t hash, struct station *stn)
 {
-	unsigned long long i = hash & (MAX_CAPACITY - 1);
+	uint64_t i = hash & (MAX_CAPACITY - 1);
 	for (;;) {
 		if (!stn[i].cnt) {
 			stn[i].cnt = 0;
@@ -69,18 +70,18 @@ processlines(char *beg, char *end, struct station *stations)
 	char *cur = beg;
 	while (cur < end) {
 		char *name = cur;
-		unsigned long long hash = FNV1A_OFFSET;
+		uint64_t hash = FNV1A_OFFSET;
 		while (*cur != ';') {
-			hash ^= (unsigned long long)*cur;
+			hash ^= (uint8_t)*cur;
 			hash *= FNV1A_PRIME;
 			++cur;
 		}
-		int nname = (int)(cur - name);
+		int32_t nname = (int32_t)(cur - name);
 		++cur;
-		int neg = *cur == '-';
+		int32_t neg = *cur == '-';
 		cur += neg;
-		int num = (*cur++ - '0') * 10;
-		int deca = *cur != '.';
+		int32_t num = (*cur++ - '0') * 10;
+		int32_t deca = *cur != '.';
 		num *= 1 + 9 * deca;
 		num += (*cur - '0') * 10 * deca;
 		cur += deca + 1;
@@ -96,7 +97,7 @@ processlines(char *beg, char *end, struct station *stations)
 }
 
 static size_t
-processbuffer(char *beg, char *end, int seek, struct station *stations)
+processbuffer(char *beg, char *end, bool seek, struct station *stations)
 {
 	/* shift the beginning and end of the buffer to only read whole lines */
 	if (seek) {
@@ -123,7 +124,7 @@ process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct
 	 * batch will read characters from the end of the previous batch, at
 	 * most one extea whole line.
 	 */
-	int seek = offset > 0;
+	bool seek = offset > 0;
 	if (seek) {
 		fseek(fp, (ssize_t)(offset - MAX_LINE_LEN), SEEK_SET);
 		len += MAX_LINE_LEN;
@@ -138,12 +139,12 @@ process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct
 		left = processbuffer(buf, end, seek, stations);
 		if (left)
 			memmove(buf, end - left, left);
-		seek = 0;
+		seek = false;
 	} while (len);
 	fclose(fp);
 }
 
-static int
+static int32_t
 compare(const void *a, const void *b)
 {
 	struct station *x = (struct station *)a;
@@ -156,10 +157,10 @@ compare(const void *a, const void *b)
 		return -1;
 	char *s1 = x->name;
 	char *s2 = y->name;
-	int n1 = x->nname;
-	int n2 = y->nname;
-	int n = n1 < n2 ? n1 : n2;
-	int cmp = memcmp(s1, s2, (unsigned)n);
+	int32_t n1 = x->nname;
+	int32_t n2 = y->nname;
+	int32_t n = n1 < n2 ? n1 : n2;
+	int32_t cmp = memcmp(s1, s2, (unsigned)n);
 	if (cmp == 0)
 		return n1 - n2;
 	return cmp;
@@ -182,7 +183,7 @@ merge(struct station *stations, size_t n)
 	struct station *dst = stations;
 	struct station *src = dst + MAX_CAPACITY;
 	for (size_t j = 0; j < n; j++) {
-		for (int i = 0; i < MAX_CAPACITY; i++) {
+		for (int32_t i = 0; i < MAX_CAPACITY; i++) {
 			struct station *s = src + i;
 			if (!s->cnt) continue;
 			struct station *d = find(s->name, s->nname, s->hash, dst);
