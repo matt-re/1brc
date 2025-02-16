@@ -153,8 +153,10 @@ compare(const void *a, const void *b)
 	struct station *y = (struct station *)b;
 	if (!(x->cnt || y->cnt))
 		return 0;
-	if (!(x->cnt && y->cnt))
+	if (!x->cnt)
 		return 1;
+	if (!y->cnt)
+		return -1;
 	char *s1 = x->name;
 	char *s2 = y->name;
 	int n1 = x->nname;
@@ -232,19 +234,14 @@ dowork(char *filename, size_t nfile)
 	}
 	struct station *result = merge(g_stations[0], nthread-1);
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
-	printf("{");
-	size_t i;
-	for (i = 0; i < MAX_CAPACITY; i++) {
-		if (!result[i].cnt) continue;
-		double avg = (double)result[i].sum / result[i].cnt * 0.1;
-		double min = (double)result[i].min * 0.1;
-		double max = (double)result[i].max * 0.1;
-		printf("%.*s=%.1f/%.1f/%.1f", result[i].nname, result[i].name, min, avg, max);
-		++i;
-		break;
+	{
+		double avg = (double)result[0].sum / result[0].cnt * 0.1;
+		double min = (double)result[0].min * 0.1;
+		double max = (double)result[0].max * 0.1;
+		printf("{%.*s=%.1f/%.1f/%.1f", result[0].nname, result[0].name, min, avg, max);
 	}
-	for (; i < MAX_CAPACITY; i++) {
-		if (!result[i].cnt) continue;
+	for (size_t i = 1; i < MAX_CAPACITY; i++) {
+		if (!result[i].cnt) break;
 		double avg = (double)result[i].sum / result[i].cnt * 0.1;
 		double min = (double)result[i].min * 0.1;
 		double max = (double)result[i].max * 0.1;
