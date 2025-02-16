@@ -42,23 +42,22 @@ static pthread_t g_threads[MAX_THREAD];
 static struct thread_data g_data[MAX_THREAD];
 
 static struct station *
-find(char *name, int nname, unsigned long long hash, struct station *stations)
+find(char *name, int nname, unsigned long long hash, struct station *stn)
 {
 	unsigned long long i = hash & (MAX_CAPACITY - 1);
 	for (;;) {
-		if (!stations[i].cnt) {
-			stations[i].cnt = 0;
-			stations[i].max = INT_MIN;
-			stations[i].min = INT_MAX;
-			stations[i].sum = 0;
-			memcpy(stations[i].name, name, nname);
-			stations[i].nname = nname;
-			stations[i].hash = hash;
-			return &stations[i];
+		if (!stn[i].cnt) {
+			stn[i].cnt = 0;
+			stn[i].max = INT_MIN;
+			stn[i].min = INT_MAX;
+			stn[i].sum = 0;
+			memcpy(stn[i].name, name, nname);
+			stn[i].nname = nname;
+			stn[i].hash = hash;
+			return &stn[i];
 		}
-		if (stations[i].nname == nname && stations[i].hash == hash &&
-		    memcmp(stations[i].name, name, (unsigned)nname) == 0) {
-			return &stations[i];
+		if (stn[i].nname == nname && stn[i].hash == hash && memcmp(stn[i].name, name, (unsigned)nname) == 0) {
+			return &stn[i];
 		}
 		i = (i + 1) & (MAX_CAPACITY - 1);
 	}
