@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/time.h>
 
-#define READ_SIZE	(1 << 22)
+#define READ_SIZE	(1 << 23)
 #ifndef MAX_THREAD
 #define MAX_THREAD	1
 #endif /* MAX_THREAD */
