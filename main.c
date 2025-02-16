@@ -39,10 +39,10 @@ struct thread_data
 static struct station g_stations[MAX_THREAD][MAX_CAPACITY];
 static char g_readbuffers[MAX_THREAD][READ_SIZE];
 static pthread_t g_threads[MAX_THREAD];
-static struct thread_data g_thread_data[MAX_THREAD];
+static struct thread_data g_data[MAX_THREAD];
 
 static struct station *
-get_station(char *name, int nname, unsigned long long hash, struct station *stations)
+find(char *name, int nname, unsigned long long hash, struct station *stations)
 {
 	unsigned long long i = hash & (MAX_CAPACITY - 1);
 	for (;;) {
@@ -65,7 +65,7 @@ get_station(char *name, int nname, unsigned long long hash, struct station *stat
 }
 
 static void
-read_lines(char *beg, char *end, struct station *stations)
+processlines(char *beg, char *end, struct station *stations)
 {
 	char *cur = beg;
 	while (cur < end) {
@@ -88,7 +88,7 @@ read_lines(char *beg, char *end, struct station *stations)
 		num += *cur++ - '0';
 		num *= 1 - (2 * neg);
 		++cur;
-		struct station *stn = get_station(name, nname, hash, stations);
+		struct station *stn = find(name, nname, hash, stations);
 		++stn->cnt;
 		stn->max = stn->max > num ? stn->max : num;
 		stn->min = stn->min < num ? stn->min : num;
@@ -97,7 +97,7 @@ read_lines(char *beg, char *end, struct station *stations)
 }
 
 static size_t
-read_buffer(char *beg, char *end, int seek, struct station *stations)
+processbuffer(char *beg, char *end, int seek, struct station *stations)
 {
 	/* shift the beginning and end of the buffer to only read whole lines */
 	if (seek) {
@@ -108,7 +108,7 @@ read_buffer(char *beg, char *end, int seek, struct station *stations)
 	char *oldend = end;
 	while (*--end != '\n');
 	++end;
-	read_lines(beg, end, stations);
+	processlines(beg, end, stations);
 	return (size_t)(oldend - end);
 }
 
@@ -116,9 +116,7 @@ static void
 process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct station *stations)
 {
 	FILE *fp = fopen(filename, "rb");
-	if (!fp)
-		return;
-
+	if (!fp) return;
 	/* Each batch after first needs to contain the characters from the
 	 * previous batch to handle a line being split across batches. The
 	 * current batch will only read up to the last \n character, which
@@ -138,7 +136,7 @@ process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct
 		size_t nread = fread(buf + left, 1, amount, fp);
 		len -= nread;
 		char *end = buf + nread + left;
-		left = read_buffer(buf, end, seek, stations);
+		left = processbuffer(buf, end, seek, stations);
 		if (left)
 			memmove(buf, end - left, left);
 		seek = 0;
@@ -169,11 +167,10 @@ compare(const void *a, const void *b)
 }
 
 static size_t
-get_file_size(char *file)
+getsize(char *file)
 {
 	FILE *fp = fopen(file, "rb");
-	if (!fp)
-		return 0;
+	if (!fp) return 0;
 	fseek(fp, 0, SEEK_END);
 	size_t size = (size_t)ftell(fp);
 	fclose(fp);
@@ -189,7 +186,7 @@ merge(struct station *stations, size_t n)
 		for (int i = 0; i < MAX_CAPACITY; i++) {
 			struct station *s = src + i;
 			if (!s->cnt) continue;
-			struct station *d = get_station(s->name, s->nname, s->hash, dst);
+			struct station *d = find(s->name, s->nname, s->hash, dst);
 			d->cnt += s->cnt;
 			d->max = d->max > s->max ? d->max : s->max;
 			d->min = d->min < s->min ? d->min : s->min;
@@ -201,7 +198,7 @@ merge(struct station *stations, size_t n)
 }
 
 static void *
-thread_start(void *arg)
+dothread(void *arg)
 {
 	struct thread_data *td = arg;
 	process(td->fname, td->buf, td->cap, td->len, td->off, td->stn);
@@ -215,7 +212,7 @@ dowork(char *filename, size_t nfile)
 	nbatch = nbatch < MAX_LINE_LEN ? MAX_LINE_LEN : nbatch;
 	size_t nthread = nfile / nbatch;
 	for (size_t i = 0, offset = 0; i < nthread; i++, offset += nbatch) {
-		g_thread_data[i] = (struct thread_data){
+		g_data[i] = (struct thread_data){
 			.fname = filename,
 			.buf   = g_readbuffers[i],
 			.cap   = sizeof g_readbuffers[i],
@@ -225,9 +222,9 @@ dowork(char *filename, size_t nfile)
 		};
 	}
 	size_t ntail = nfile - nbatch * nthread;
-	g_thread_data[nthread-1].len += ntail;
+	g_data[nthread-1].len += ntail;
 	for (size_t i = 0; i < nthread; i++) {
-		pthread_create(&g_threads[i], NULL, thread_start, &g_thread_data[i]);
+		pthread_create(&g_threads[i], NULL, dothread, &g_data[i]);
 	}
 	for (size_t i = 0; i < nthread; i++) {
 		pthread_join(g_threads[i], NULL);
@@ -252,7 +249,7 @@ int
 main(int argc, char *argv[])
 {
 	char *filename = argc > 1 ? argv[1] : "measurements.txt";
-	size_t nfile = get_file_size(filename);
+	size_t nfile = getsize(filename);
 	if (!nfile) return 1;
 	struct timeval timebeg;
 	struct timeval timeend;
