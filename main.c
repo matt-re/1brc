@@ -24,26 +24,26 @@ struct station
 	int32_t sum;
 	int32_t cnt;
 	int32_t nname;
-	char name[100];
+	uint8_t name[100];
 };
 
 struct data
 {
 	char *fname;
 	struct station *stn;
-	char *buf;
+	uint8_t *buf;
 	size_t cap;
 	size_t len;
 	size_t off;
 };
 
 static struct station g_stations[MAX_THREAD][MAX_CAPACITY];
-static char g_readbuffers[MAX_THREAD][READ_SIZE];
+static uint8_t g_readbuffers[MAX_THREAD][READ_SIZE];
 static pthread_t g_threads[MAX_THREAD];
 static struct data g_data[MAX_THREAD];
 
 static struct station *
-find(char *name, int32_t nname, uint64_t hash, struct station *stn)
+find(uint8_t *name, int32_t nname, uint64_t hash, struct station *stn)
 {
 	uint64_t i = hash & (MAX_CAPACITY - 1);
 	for (;;) {
@@ -65,14 +65,14 @@ find(char *name, int32_t nname, uint64_t hash, struct station *stn)
 }
 
 static void
-processlines(char *beg, char *end, struct station *stations)
+processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 {
-	char *cur = beg;
+	uint8_t *cur = beg;
 	while (cur < end) {
-		char *name = cur;
+		uint8_t *name = cur;
 		uint64_t hash = FNV1A_OFFSET;
 		while (*cur != ';') {
-			hash ^= (uint8_t)*cur;
+			hash ^= *cur;
 			hash *= FNV1A_PRIME;
 			++cur;
 		}
@@ -97,7 +97,7 @@ processlines(char *beg, char *end, struct station *stations)
 }
 
 static size_t
-processbuffer(char *beg, char *end, bool seek, struct station *stations)
+processbuffer(uint8_t *beg, uint8_t *end, bool seek, struct station *stations)
 {
 	/* shift the beginning and end of the buffer to only read whole lines */
 	if (seek) {
@@ -105,7 +105,7 @@ processbuffer(char *beg, char *end, bool seek, struct station *stations)
 		while (*--beg !='\n');
 		++beg;
 	}
-	char *oldend = end;
+	uint8_t *oldend = end;
 	while (*--end != '\n');
 	++end;
 	processlines(beg, end, stations);
@@ -113,7 +113,7 @@ processbuffer(char *beg, char *end, bool seek, struct station *stations)
 }
 
 static void
-process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct station *stations)
+process(char *filename, uint8_t *buf, size_t cap, size_t len, size_t offset, struct station *stations)
 {
 	FILE *fp = fopen(filename, "rb");
 	if (!fp) return;
@@ -135,7 +135,7 @@ process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct
 		size_t amount = avail < len ? avail : len;
 		size_t nread = fread(buf + left, 1, amount, fp);
 		len -= nread;
-		char *end = buf + nread + left;
+		uint8_t *end = buf + nread + left;
 		left = processbuffer(buf, end, seek, stations);
 		if (left)
 			memmove(buf, end - left, left);
@@ -155,8 +155,8 @@ compare(const void *a, const void *b)
 		return 1;
 	if (!y->cnt)
 		return -1;
-	char *s1 = x->name;
-	char *s2 = y->name;
+	uint8_t *s1 = x->name;
+	uint8_t *s2 = y->name;
 	int32_t n1 = x->nname;
 	int32_t n2 = y->nname;
 	int32_t n = n1 < n2 ? n1 : n2;
