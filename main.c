@@ -26,7 +26,7 @@ struct station
 	char name[100];
 };
 
-struct thread_data
+struct data
 {
 	char *fname;
 	struct station *stn;
@@ -39,7 +39,7 @@ struct thread_data
 static struct station g_stations[MAX_THREAD][MAX_CAPACITY];
 static char g_readbuffers[MAX_THREAD][READ_SIZE];
 static pthread_t g_threads[MAX_THREAD];
-static struct thread_data g_data[MAX_THREAD];
+static struct data g_data[MAX_THREAD];
 
 static struct station *
 find(char *name, int nname, unsigned long long hash, struct station *stn)
@@ -199,8 +199,8 @@ merge(struct station *stations, size_t n)
 static void *
 dothread(void *arg)
 {
-	struct thread_data *td = arg;
-	process(td->fname, td->buf, td->cap, td->len, td->off, td->stn);
+	struct data *d = arg;
+	process(d->fname, d->buf, d->cap, d->len, d->off, d->stn);
 	return arg;
 }
 
@@ -211,7 +211,7 @@ dowork(char *filename, size_t nfile)
 	nbatch = nbatch < MAX_LINE_LEN ? MAX_LINE_LEN : nbatch;
 	size_t nthread = nfile / nbatch;
 	for (size_t i = 0, offset = 0; i < nthread; i++, offset += nbatch) {
-		g_data[i] = (struct thread_data){
+		g_data[i] = (struct data){
 			.fname = filename,
 			.buf   = g_readbuffers[i],
 			.cap   = sizeof g_readbuffers[i],
