@@ -116,9 +116,9 @@ static void
 process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct station *stations)
 {
 	FILE *fp = fopen(filename, "rb");
-	if (!fp) {
+	if (!fp)
 		return;
-	}
+
 	/* Each batch after first needs to contain the characters from the
 	 * previous batch to handle a line being split across batches. The
 	 * current batch will only read up to the last \n character, which
@@ -139,9 +139,8 @@ process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct
 		len -= nread;
 		char *end = buf + nread + left;
 		left = read_buffer(buf, end, seek, stations);
-		if (left) {
+		if (left)
 			memmove(buf, end - left, left);
-		}
 		seek = 0;
 	} while (len);
 	fclose(fp);
@@ -154,9 +153,7 @@ compare(const void *a, const void *b)
 	struct station *y = (struct station *)b;
 	if (!x->cnt && !y->cnt)
 		return 0;
-	if (!x->cnt)
-		return 1;
-	if (!y->cnt)
+	if (!x->cnt || !y->cnt)
 		return 1;
 	char *s1 = x->name;
 	char *s2 = y->name;
