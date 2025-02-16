@@ -242,14 +242,23 @@ dowork(char *filename, size_t nfile)
 	struct station *result = merge(g_stations[0], nthread-1);
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
 	printf("{");
-	for (size_t i = 0; i < MAX_CAPACITY; i++) {
+	size_t i;
+	for (i = 0; i < MAX_CAPACITY; i++) {
 		if (!result[i].cnt) continue;
 		double avg = (double)result[i].sum / result[i].cnt * 0.1;
 		double min = (double)result[i].min * 0.1;
 		double max = (double)result[i].max * 0.1;
-		printf("%.*s=%.1f/%.1f/%.1f, ", result[i].nname, result[i].name, min, avg, max);
+		printf("%.*s=%.1f/%.1f/%.1f", result[i].nname, result[i].name, min, avg, max);
+		break;
 	}
-	/* TODO remove ", " from last entry */
+	++i;
+	for (; i < MAX_CAPACITY; i++) {
+		if (!result[i].cnt) continue;
+		double avg = (double)result[i].sum / result[i].cnt * 0.1;
+		double min = (double)result[i].min * 0.1;
+		double max = (double)result[i].max * 0.1;
+		printf(", %.*s=%.1f/%.1f/%.1f", result[i].nname, result[i].name, min, avg, max);
+	}
 	printf("}\n");
 }
 
