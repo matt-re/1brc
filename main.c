@@ -255,6 +255,7 @@ main(int argc, char *argv[])
 {
 	char *filename = argc > 1 ? argv[1] : "measurements.txt";
 	size_t nfile = get_file_size(filename);
+	if (!nfile) return 1;
 	struct timeval timebeg;
 	struct timeval timeend;
 	gettimeofday(&timebeg, NULL);
