@@ -29,7 +29,7 @@ struct station
 
 struct data
 {
-	char *fname;
+	char *file;
 	struct station *stn;
 	uint8_t *buf;
 	size_t cap;
@@ -113,9 +113,9 @@ processbuffer(uint8_t *beg, uint8_t *end, bool seek, struct station *stations)
 }
 
 static void
-process(char *filename, uint8_t *buf, size_t cap, size_t len, size_t offset, struct station *stations)
+process(char *file, uint8_t *buf, size_t cap, size_t len, size_t offset, struct station *stations)
 {
-	FILE *fp = fopen(filename, "rb");
+	FILE *fp = fopen(file, "rb");
 	if (!fp) return;
 	/* Each batch after first needs to contain the characters from the
 	 * previous batch to handle a line being split across batches. The
@@ -201,24 +201,24 @@ static void *
 dothread(void *arg)
 {
 	struct data *d = arg;
-	process(d->fname, d->buf, d->cap, d->len, d->off, d->stn);
+	process(d->file, d->buf, d->cap, d->len, d->off, d->stn);
 	return arg;
 }
 
 static void
-dowork(char *filename, size_t nfile)
+dowork(char *file, size_t nfile)
 {
 	size_t nbatch = nfile / MAX_THREAD;
 	nbatch = nbatch < MAX_LINE_LEN ? MAX_LINE_LEN : nbatch;
 	size_t nthread = nfile / nbatch;
 	for (size_t i = 0, offset = 0; i < nthread; i++, offset += nbatch) {
 		g_data[i] = (struct data){
-			.fname = filename,
-			.buf   = g_readbuffers[i],
-			.cap   = sizeof g_readbuffers[i],
-			.len   = nbatch,
-			.off   = offset,
-			.stn   = g_stations[i]
+			.file = file,
+			.buf  = g_readbuffers[i],
+			.cap  = sizeof g_readbuffers[i],
+			.len  = nbatch,
+			.off  = offset,
+			.stn  = g_stations[i]
 		};
 	}
 	size_t ntail = nfile - nbatch * nthread;
@@ -248,13 +248,13 @@ dowork(char *filename, size_t nfile)
 int
 main(int argc, char *argv[])
 {
-	char *filename = argc > 1 ? argv[1] : "measurements.txt";
-	size_t nfile = getsize(filename);
+	char *file = argc > 1 ? argv[1] : "measurements.txt";
+	size_t nfile = getsize(file);
 	if (!nfile) return 1;
 	struct timeval timebeg;
 	struct timeval timeend;
 	gettimeofday(&timebeg, NULL);
-	dowork(filename, nfile);
+	dowork(file, nfile);
 	gettimeofday(&timeend, NULL);
 	long seconds = timeend.tv_sec - timebeg.tv_sec;
 	long microseconds = timeend.tv_usec - timebeg.tv_usec;
