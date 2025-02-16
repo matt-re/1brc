@@ -133,7 +133,7 @@ process(char *filename, uint8_t *buf, size_t cap, size_t len, size_t offset, str
 	do {
 		size_t avail = cap - left;
 		size_t amount = avail < len ? avail : len;
-		size_t nread = fread(buf + left, 1, amount, fp);
+		size_t nread = fread(buf + left, sizeof *buf, amount, fp);
 		len -= nread;
 		uint8_t *end = buf + nread + left;
 		left = processbuffer(buf, end, seek, stations);
