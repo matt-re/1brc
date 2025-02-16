@@ -151,9 +151,9 @@ compare(const void *a, const void *b)
 {
 	struct station *x = (struct station *)a;
 	struct station *y = (struct station *)b;
-	if (!x->cnt && !y->cnt)
+	if (!(x->cnt || y->cnt))
 		return 0;
-	if (!x->cnt || !y->cnt)
+	if (!(x->cnt && y->cnt))
 		return 1;
 	char *s1 = x->name;
 	char *s2 = y->name;
@@ -268,4 +268,3 @@ main(int argc, char *argv[])
 	double elapsed = seconds + microseconds * 1e-6;
 	fprintf(stderr, "%.3f seconds\n", elapsed);
 }
-
