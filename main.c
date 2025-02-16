@@ -132,16 +132,10 @@ process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct
 		len += MAX_LINE_LEN;
 	}
 	size_t left = 0;
-	for (;;) {
-		if (!len) {
-			break;
-		}
+	do {
 		size_t avail = cap - left;
 		size_t amount = avail < len ? avail : len;
 		size_t nread = fread(buf + left, 1, amount, fp);
-		if (!nread) {
-			break;
-		}
 		len -= nread;
 		char *end = buf + nread + left;
 		left = read_buffer(buf, end, seek, stations);
@@ -149,7 +143,7 @@ process(char *filename, char *buf, size_t cap, size_t len, size_t offset, struct
 			memmove(buf, end - left, left);
 		}
 		seek = 0;
-	}
+	} while (len);
 	fclose(fp);
 }
 
@@ -249,9 +243,9 @@ dowork(char *filename, size_t nfile)
 		double min = (double)result[i].min * 0.1;
 		double max = (double)result[i].max * 0.1;
 		printf("%.*s=%.1f/%.1f/%.1f", result[i].nname, result[i].name, min, avg, max);
+		++i;
 		break;
 	}
-	++i;
 	for (; i < MAX_CAPACITY; i++) {
 		if (!result[i].cnt) continue;
 		double avg = (double)result[i].sum / result[i].cnt * 0.1;
