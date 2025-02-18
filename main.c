@@ -97,10 +97,10 @@ processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 }
 
 static size_t
-processbuffer(uint8_t *beg, uint8_t *end, bool seek, struct station *stations)
+processbuffer(uint8_t *beg, uint8_t *end, bool lookback, struct station *stations)
 {
 	/* shift the beginning and end of the buffer to only read whole lines */
-	if (seek) {
+	if (lookback) {
 		beg += MAX_LINE_LEN;
 		while (*--beg !='\n');
 		++beg;
@@ -124,8 +124,8 @@ process(char *file, uint8_t *buf, size_t cap, size_t len, size_t offset, struct 
 	 * batch will read characters from the end of the previous batch, at
 	 * most one extea whole line.
 	 */
-	bool seek = offset > 0;
-	if (seek) {
+	bool lookback = offset > 0;
+	if (lookback) {
 		fseek(fp, (ssize_t)(offset - MAX_LINE_LEN), SEEK_SET);
 		len += MAX_LINE_LEN;
 	}
@@ -136,10 +136,10 @@ process(char *file, uint8_t *buf, size_t cap, size_t len, size_t offset, struct 
 		size_t nread = fread(buf + left, sizeof *buf, amount, fp);
 		len -= nread;
 		uint8_t *end = buf + nread + left;
-		left = processbuffer(buf, end, seek, stations);
+		left = processbuffer(buf, end, lookback, stations);
 		if (left)
 			memmove(buf, end - left, left);
-		seek = false;
+		lookback = false;
 	} while (len);
 	fclose(fp);
 }
