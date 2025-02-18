@@ -173,8 +173,8 @@ getsize(char *file)
 	if (!fp) return 0;
 	fseek(fp, 0, SEEK_END);
 	long size = ftell(fp);
-	if (1 > size) return 0;
 	fclose(fp);
+	if (1 > size) return 0;
 	return (size_t)size;
 }
 
