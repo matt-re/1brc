@@ -172,9 +172,10 @@ getsize(char *file)
 	FILE *fp = fopen(file, "rb");
 	if (!fp) return 0;
 	fseek(fp, 0, SEEK_END);
-	size_t size = (size_t)ftell(fp);
+	long size = ftell(fp);
+	if (1 > size) return 0;
 	fclose(fp);
-	return size;
+	return (size_t)size;
 }
 
 static struct station *
