@@ -169,13 +169,17 @@ compare(const void *a, const void *b)
 static size_t
 getsize(char *file)
 {
+	size_t size = 0;
 	FILE *fp = fopen(file, "rb");
-	if (!fp) return 0;
-	fseek(fp, 0, SEEK_END);
-	long size = ftell(fp);
-	fclose(fp);
-	if (1 > size) return 0;
-	return (size_t)size;
+	if (fp) {
+		fseek(fp, 0, SEEK_END);
+		long long s = ftell(fp);
+		if (s > 0) {
+			size = (size_t)s;
+		}
+		fclose(fp);
+	}
+	return size;
 }
 
 static struct station *
