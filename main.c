@@ -236,15 +236,15 @@ dowork(char *file, size_t nfile)
 	}
 	struct station *result = merge(g_stations[0], nthread-1);
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
-	double avg = (double)result[0].sum / result[0].cnt * 0.1;
-	double min = result[0].min * 0.1;
-	double max = result[0].max * 0.1;
+	float avg = result[0].sum * 0.1f / result[0].cnt;
+	float min = result[0].min * 0.1f;
+	float max = result[0].max * 0.1f;
 	printf("{%.*s=%.1f/%.1f/%.1f", result[0].nname, result[0].name, min, avg, max);
 	for (size_t i = 1; i < MAX_CAPACITY; i++) {
 		if (!result[i].cnt) break;
-		avg = (double)result[i].sum / result[i].cnt * 0.1;
-		min = result[i].min * 0.1;
-		max = result[i].max * 0.1;
+		avg = result[i].sum * 0.1f / result[i].cnt;
+		min = result[i].min * 0.1f;
+		max = result[i].max * 0.1f;
 		printf(", %.*s=%.1f/%.1f/%.1f", result[i].nname, result[i].name, min, avg, max);
 	}
 	printf("}\n");
