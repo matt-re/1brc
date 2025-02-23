@@ -190,12 +190,13 @@ merge(struct station *first, size_t size, size_t count)
 	for (size_t j = 1; j < count; j++, src += size) {
 		for (size_t i = 0; i < size; i++) {
 			struct station *s = src + i;
-			if (!s->cnt) continue;
-			struct station *d = find(s->name, s->nname, s->hash, dst);
-			d->cnt += s->cnt;
-			d->max = d->max > s->max ? d->max : s->max;
-			d->min = d->min < s->min ? d->min : s->min;
-			d->sum += s->sum;
+			if (s->cnt) {
+				struct station *d = find(s->name, s->nname, s->hash, dst);
+				d->cnt += s->cnt;
+				d->max = d->max > s->max ? d->max : s->max;
+				d->min = d->min < s->min ? d->min : s->min;
+				d->sum += s->sum;
+			}
 		}
 	}
 	return dst;
