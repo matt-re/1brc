@@ -55,13 +55,14 @@ find(uint8_t *name, int32_t nname, uint64_t hash, struct station *stn)
 			memcpy(stn[i].name, name, nname);
 			stn[i].nname = nname;
 			stn[i].hash = hash;
-			return &stn[i];
+			break;
+		} else if (stn[i].nname == nname && stn[i].hash == hash && memcmp(stn[i].name, name, (unsigned)nname) == 0) {
+			break;
+		} else {
+			i = (i + 1) & (MAX_CAPACITY - 1);
 		}
-		if (stn[i].nname == nname && stn[i].hash == hash && memcmp(stn[i].name, name, (unsigned)nname) == 0) {
-			return &stn[i];
-		}
-		i = (i + 1) & (MAX_CAPACITY - 1);
 	}
+	return &stn[i];
 }
 
 static void
