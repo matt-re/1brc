@@ -183,12 +183,12 @@ getsize(char *file)
 }
 
 static struct station *
-merge(struct station *stations, size_t n)
+merge(struct station *first, size_t size, size_t count)
 {
-	struct station *dst = stations;
-	struct station *src = dst + MAX_CAPACITY;
-	for (size_t j = 0; j < n; j++) {
-		for (int32_t i = 0; i < MAX_CAPACITY; i++) {
+	struct station *dst = first;
+	struct station *src = first + size;
+	for (size_t j = 1; j < count; j++, src += size) {
+		for (size_t i = 0; i < size; i++) {
 			struct station *s = src + i;
 			if (!s->cnt) continue;
 			struct station *d = find(s->name, s->nname, s->hash, dst);
@@ -197,7 +197,6 @@ merge(struct station *stations, size_t n)
 			d->min = d->min < s->min ? d->min : s->min;
 			d->sum += s->sum;
 		}
-		src += MAX_CAPACITY;
 	}
 	return dst;
 }
@@ -234,7 +233,7 @@ dowork(char *file, size_t nfile)
 	for (size_t i = 0; i < nthread; i++) {
 		pthread_join(g_threads[i], NULL);
 	}
-	struct station *result = merge(g_stations[0], nthread-1);
+	struct station *result = merge(g_stations[0], MAX_CAPACITY, nthread);
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
 	float avg = result[0].sum * 0.1f / result[0].cnt;
 	float min = result[0].min * 0.1f;
