@@ -158,12 +158,10 @@ compare(const void *a, const void *b)
 	else if (!y->cnt)
 		res = -1;
 	else {
-		uint8_t *s1 = x->name;
-		uint8_t *s2 = y->name;
 		int32_t n1 = x->nname;
 		int32_t n2 = y->nname;
-		int32_t n = n1 < n2 ? n1 : n2;
-		res = memcmp(s1, s2, (unsigned)n);
+		int32_t minn = n1 < n2 ? n1 : n2;
+		res = memcmp(x->name, y->name, (unsigned)minn);
 		if (res == 0)
 			res = n1 - n2;
 	}
