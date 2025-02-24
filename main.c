@@ -211,9 +211,13 @@ dothread(void *arg)
 	return arg;
 }
 
-static void
-dowork(char *file, size_t nfile)
+int
+main(int argc, char *argv[])
 {
+	char *file = argc > 1 ? argv[1] : "measurements.txt";
+	size_t nfile = getsize(file);
+	if (!nfile)
+		return 1;
 	size_t nbatch = nfile / MAX_THREAD;
 	nbatch = nbatch < MAX_LINE_LEN ? MAX_LINE_LEN : nbatch;
 	size_t nthread = nfile / nbatch;
@@ -246,14 +250,4 @@ dowork(char *file, size_t nfile)
 		printf(", %.*s=%.1f/%.1f/%.1f", result[i].nname, result[i].name, min, avg, max);
 	}
 	printf("}\n");
-}
-
-int
-main(int argc, char *argv[])
-{
-	char *file = argc > 1 ? argv[1] : "measurements.txt";
-	size_t nfile = getsize(file);
-	if (!nfile)
-		return 1;
-	dowork(file, nfile);
 }
