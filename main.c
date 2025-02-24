@@ -152,11 +152,11 @@ compare(const void *a, const void *b)
 	struct station *x = (struct station *)a;
 	struct station *y = (struct station *)b;
 	int res;
-	if (!(x->cnt || y->cnt))
+	if (x->cnt == 0 && y->cnt == 0)
 		res = 0;
-	else if (!x->cnt)
+	else if (x->cnt == 0)
 		res = 1;
-	else if (!y->cnt)
+	else if (y->cnt == 0)
 		res = -1;
 	else {
 		int32_t n1 = x->nname;
