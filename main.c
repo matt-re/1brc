@@ -117,7 +117,8 @@ static void
 process(char *file, uint8_t *buf, size_t cap, size_t len, size_t offset, struct station *stations)
 {
 	FILE *fp = fopen(file, "rb");
-	if (!fp) return;
+	if (!fp)
+		return;
 	/* Each batch after first needs to contain the characters from the
 	 * previous batch to handle a line being split across batches. The
 	 * current batch will only read up to the last \n character, which
