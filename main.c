@@ -230,12 +230,10 @@ dowork(char *file, size_t nfile)
 	}
 	size_t ntail = nfile - nbatch * nthread;
 	g_data[nthread-1].len += ntail;
-	for (size_t i = 0; i < nthread; i++) {
+	for (size_t i = 0; i < nthread; i++)
 		pthread_create(&g_threads[i], NULL, dothread, &g_data[i]);
-	}
-	for (size_t i = 0; i < nthread; i++) {
+	for (size_t i = 0; i < nthread; i++)
 		pthread_join(g_threads[i], NULL);
-	}
 	struct station *result = merge(g_stations[0], MAX_CAPACITY, nthread);
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
 	float avg = result[0].sum * 0.1f / result[0].cnt;
