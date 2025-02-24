@@ -176,9 +176,8 @@ getsize(char *file)
 	if (fp) {
 		fseek(fp, 0, SEEK_END);
 		long long s = ftell(fp);
-		if (s > 0) {
+		if (s > 0)
 			size = (size_t)s;
-		}
 		fclose(fp);
 	}
 	return size;
@@ -258,7 +257,8 @@ main(int argc, char *argv[])
 {
 	char *file = argc > 1 ? argv[1] : "measurements.txt";
 	size_t nfile = getsize(file);
-	if (!nfile) return 1;
+	if (!nfile)
+		return 1;
 	struct timeval timebeg;
 	struct timeval timeend;
 	gettimeofday(&timebeg, NULL);
