@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 
 #define READ_SIZE	(1 << 23)
 #ifndef MAX_THREAD
@@ -256,13 +255,5 @@ main(int argc, char *argv[])
 	size_t nfile = getsize(file);
 	if (!nfile)
 		return 1;
-	struct timeval timebeg;
-	struct timeval timeend;
-	gettimeofday(&timebeg, NULL);
 	dowork(file, nfile);
-	gettimeofday(&timeend, NULL);
-	long seconds = timeend.tv_sec - timebeg.tv_sec;
-	long microseconds = timeend.tv_usec - timebeg.tv_usec;
-	double elapsed = seconds + microseconds * 1e-6;
-	fprintf(stderr, "%.3f seconds\n", elapsed);
 }
