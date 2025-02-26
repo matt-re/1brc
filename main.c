@@ -243,7 +243,7 @@ main(int argc, char *argv[])
 	float min = result[0].min * 0.1f;
 	float max = result[0].max * 0.1f;
 	printf("{%.*s=%.1f/%.1f/%.1f", result[0].nname, result[0].name, min, avg, max);
-	for (size_t i = 1; (i < MAX_CAPACITY) && (result[i].cnt); i++) {
+	for (size_t i = 1; (result[i].cnt > 0) && (i < MAX_CAPACITY); i++) {
 		avg = result[i].sum * 0.1f / result[i].cnt;
 		min = result[i].min * 0.1f;
 		max = result[i].max * 0.1f;
