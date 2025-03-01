@@ -186,21 +186,19 @@ getsize(char *file)
 static struct station *
 merge(struct station *first, size_t size, size_t count)
 {
-	struct station *dst = first;
+	struct station *res = first;
 	struct station *src = first + size;
-	for (size_t j = 1; j < count; j++, src += size) {
-		for (size_t i = 0; i < size; i++) {
-			struct station *s = src + i;
-			if (s->cnt) {
-				struct station *d = find(s->name, s->nname, s->hash, dst);
-				d->cnt += s->cnt;
-				d->max = d->max > s->max ? d->max : s->max;
-				d->min = d->min < s->min ? d->min : s->min;
-				d->sum += s->sum;
-			}
+	size_t n = (count - 1) * size;
+	for (size_t i = 0; i < n; i++, src++) {
+		if (src->cnt) {
+			struct station *dst = find(src->name, src->nname, src->hash, res);
+			dst->cnt += src->cnt;
+			dst->max = dst->max > src->max ? dst->max : src->max;
+			dst->min = dst->min < src->min ? dst->min : src->min;
+			dst->sum += src->sum;
 		}
 	}
-	return dst;
+	return res;
 }
 
 static void *
