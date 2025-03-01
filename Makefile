@@ -3,6 +3,7 @@ CFLAGS = -std=c99 -O2 -Wall -Werror -Wextra -pedantic
 CFLAGS += -Wshadow
 CFLAGS += -Wconversion
 CFLAGS += -fstrict-aliasing -Wstrict-aliasing
+CFLAGS += -Wno-implicit-int-float-conversion
 
 ifndef MAX_THREAD
 	UNAME := $(shell uname)
