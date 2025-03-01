@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
+TIMEFORMAT='%2R'
 for run in {1..5}; do
-	/usr/bin/time -p ./1brc measurements_1b.txt 2>&1 > /dev/null | grep real | sed 's/[^ ]* //'
+	time ./1brc measurements_1b.txt > /dev/null
 done
 
