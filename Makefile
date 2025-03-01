@@ -10,6 +10,9 @@ ifndef MAX_THREAD
 	ifeq ($(UNAME), Darwin)
 		MAX_THREAD=$(shell sysctl -n hw.logicalcpu)
 	endif
+	ifeq ($(UNAME), Linux)
+		MAX_THREAD=$(shell nproc)
+	endif
 endif
 ifdef MAX_THREAD
 CFLAGS += -DMAX_THREAD=$(MAX_THREAD)
