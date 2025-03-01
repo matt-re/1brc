@@ -51,7 +51,7 @@ find(uint8_t *name, int32_t nname, uint64_t hash, struct station *stn)
 			stn[i].max = INT_MIN;
 			stn[i].min = INT_MAX;
 			stn[i].sum = 0;
-			memcpy(stn[i].name, name, nname);
+			memcpy(stn[i].name, name, (unsigned)nname);
 			stn[i].nname = nname;
 			stn[i].hash = hash;
 			break;
