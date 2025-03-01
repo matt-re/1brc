@@ -127,7 +127,7 @@ process(char *file, uint8_t *buf, size_t cap, size_t len, size_t offset, struct 
 	 */
 	bool lookback = offset > 0;
 	if (lookback) {
-		fseek(fp, (ssize_t)(offset - MAX_LINE_LEN), SEEK_SET);
+		fseek(fp, (long long)(offset - MAX_LINE_LEN), SEEK_SET);
 		len += MAX_LINE_LEN;
 	}
 	size_t left = 0;
