@@ -113,7 +113,7 @@ processbuffer(uint8_t *beg, uint8_t *end, bool lookback, struct station *station
 }
 
 static void
-process(char *file, uint8_t *buf, size_t cap, size_t len, size_t offset, struct station *stations)
+processfile(char *file, uint8_t *buf, size_t cap, size_t len, size_t offset, struct station *stations)
 {
 	FILE *fp = fopen(file, "rb");
 	if (!fp)
@@ -193,19 +193,19 @@ merge(struct station *first, size_t size, size_t count)
 		if (src->cnt) {
 			struct station *dst = find(src->name, src->nname, src->hash, res);
 			dst->cnt += src->cnt;
+			dst->sum += src->sum;
 			dst->max = dst->max > src->max ? dst->max : src->max;
 			dst->min = dst->min < src->min ? dst->min : src->min;
-			dst->sum += src->sum;
 		}
 	}
 	return res;
 }
 
 static void *
-dothread(void *arg)
+threadstart(void *arg)
 {
 	struct data *d = arg;
-	process(d->file, d->buf, d->cap, d->len, d->off, d->stn);
+	processfile(d->file, d->buf, d->cap, d->len, d->off, d->stn);
 	return arg;
 }
 
@@ -232,7 +232,7 @@ main(int argc, char *argv[])
 	size_t ntail = nfile - nbatch * nthread;
 	g_data[nthread-1].len += ntail;
 	for (size_t i = 0; i < nthread; i++)
-		pthread_create(&g_threads[i], NULL, dothread, &g_data[i]);
+		pthread_create(&g_threads[i], NULL, threadstart, &g_data[i]);
 	for (size_t i = 0; i < nthread; i++)
 		pthread_join(g_threads[i], NULL);
 	struct station *result = merge(g_stations[0], MAX_CAPACITY, nthread);
