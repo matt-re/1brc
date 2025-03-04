@@ -211,12 +211,12 @@ main(int argc, char *argv[])
 	ssize_t nthread = nfile / nbatch;
 	for (ssize_t i = 0, offset = 0; i < nthread; i++, offset += nbatch) {
 		g_data[i] = (struct data){
-			.fd = fd,
-			.buf  = g_readbuffers[i],
-			.cap  = sizeof g_readbuffers[i],
-			.len  = nbatch,
-			.off  = offset,
-			.stn  = g_stations[i]
+			.fd  = fd,
+			.buf = g_readbuffers[i],
+			.cap = sizeof g_readbuffers[i],
+			.len = nbatch,
+			.off = offset,
+			.stn = g_stations[i]
 		};
 	}
 	ssize_t ntail = nfile - nbatch * nthread;
