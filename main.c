@@ -169,6 +169,15 @@ compare(const void *a, const void *b)
 	return res;
 }
 
+static ptrdiff_t
+getsize(char *file)
+{
+	struct stat st;
+	stat(file, &st);
+	ptrdiff_t size = st.st_size;
+	return size > 0 ? size : 0;
+}
+
 static struct station *
 merge(struct station *first, ptrdiff_t size, ptrdiff_t count)
 {
@@ -199,10 +208,8 @@ int
 main(int argc, char *argv[])
 {
 	char *file = argc > 1 ? argv[1] : "measurements.txt";
-	struct stat st;
-	stat(file, &st);
-	ptrdiff_t nfile = st.st_size;
-	if (nfile < 1)
+	ptrdiff_t nfile = getsize(file);
+	if (!nfile)
 		return 1;
 	int fd = open(file, O_RDONLY);
 	if (fd < 0)
