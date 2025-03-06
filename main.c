@@ -1,6 +1,7 @@
 #include <limits.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,9 +34,9 @@ struct data
 {
 	struct station *stn;
 	uint8_t *buf;
-	ssize_t cap;
-	ssize_t len;
-	ssize_t off;
+	ptrdiff_t cap;
+	ptrdiff_t len;
+	ptrdiff_t off;
 	int fd;
 };
 
@@ -99,7 +100,7 @@ processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 	}
 }
 
-static ssize_t
+static ptrdiff_t
 processbuffer(uint8_t *beg, uint8_t *end, bool lookback, struct station *stations)
 {
 	/* shift the beginning and end of the buffer to only read whole lines */
@@ -116,7 +117,7 @@ processbuffer(uint8_t *beg, uint8_t *end, bool lookback, struct station *station
 }
 
 static void
-processfile(int fd, uint8_t *buf, ssize_t cap, ssize_t len, ssize_t offset, struct station *stations)
+processfile(int fd, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t offset, struct station *stations)
 {
 	/* Each batch after first needs to contain the characters from the
 	 * previous batch to handle a line being split across batches. The
@@ -130,11 +131,11 @@ processfile(int fd, uint8_t *buf, ssize_t cap, ssize_t len, ssize_t offset, stru
 		offset -= MAX_LINE_LEN;
 		len += MAX_LINE_LEN;
 	}
-	ssize_t left = 0;
+	ptrdiff_t left = 0;
 	do {
-		ssize_t avail = cap - left;
-		ssize_t amount = avail < len ? avail : len;
-		ssize_t nread = pread(fd, buf + left, (size_t)amount, offset);
+		ptrdiff_t avail = cap - left;
+		ptrdiff_t amount = avail < len ? avail : len;
+		ptrdiff_t nread = pread(fd, buf + left, (size_t)amount, offset);
 		len -= nread;
 		offset += nread;
 		uint8_t *end = buf + nread + left;
@@ -169,12 +170,12 @@ compare(const void *a, const void *b)
 }
 
 static struct station *
-merge(struct station *first, ssize_t size, ssize_t count)
+merge(struct station *first, ptrdiff_t size, ptrdiff_t count)
 {
 	struct station *res = first;
 	struct station *src = first + size;
-	ssize_t n = (count - 1) * size;
-	for (ssize_t i = 0; i < n; i++, src++) {
+	ptrdiff_t n = (count - 1) * size;
+	for (ptrdiff_t i = 0; i < n; i++, src++) {
 		if (src->cnt) {
 			struct station *dst = find(src->name, src->nname, src->hash, res);
 			dst->cnt += src->cnt;
@@ -200,16 +201,16 @@ main(int argc, char *argv[])
 	char *file = argc > 1 ? argv[1] : "measurements.txt";
 	struct stat st;
 	stat(file, &st);
-	ssize_t nfile = st.st_size;
+	ptrdiff_t nfile = st.st_size;
 	if (nfile < 1)
 		return 1;
 	int fd = open(file, O_RDONLY);
 	if (fd < 0)
 		return 1;
-	ssize_t nbatch = nfile / MAX_THREAD;
+	ptrdiff_t nbatch = nfile / MAX_THREAD;
 	nbatch = nbatch < MAX_LINE_LEN ? MAX_LINE_LEN : nbatch;
-	ssize_t nthread = nfile / nbatch;
-	for (ssize_t i = 0, offset = 0; i < nthread; i++, offset += nbatch) {
+	ptrdiff_t nthread = nfile / nbatch;
+	for (ptrdiff_t i = 0, offset = 0; i < nthread; i++, offset += nbatch) {
 		g_data[i] = (struct data){
 			.fd  = fd,
 			.buf = g_readbuffers[i],
@@ -219,11 +220,11 @@ main(int argc, char *argv[])
 			.stn = g_stations[i]
 		};
 	}
-	ssize_t ntail = nfile - nbatch * nthread;
+	ptrdiff_t ntail = nfile - nbatch * nthread;
 	g_data[nthread-1].len += ntail;
-	for (ssize_t i = 0; i < nthread; i++)
+	for (ptrdiff_t i = 0; i < nthread; i++)
 		pthread_create(&g_threads[i], NULL, threadstart, &g_data[i]);
-	for (ssize_t i = 0; i < nthread; i++)
+	for (ptrdiff_t i = 0; i < nthread; i++)
 		pthread_join(g_threads[i], NULL);
 	struct station *result = merge(g_stations[0], MAX_CAPACITY, nthread);
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
