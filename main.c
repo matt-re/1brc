@@ -134,8 +134,8 @@ processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t of
 	ptrdiff_t left = 0;
 	do {
 		ptrdiff_t avail = cap - left;
-		size_t amount = (size_t)(avail < len ? avail : len);
-		ptrdiff_t nread = (ptrdiff_t)fread(buf + left, 1, amount, fp);
+		ptrdiff_t amount = avail < len ? avail : len;
+		ptrdiff_t nread = (ptrdiff_t)fread(buf + left, 1, (size_t)amount, fp);
 		len -= nread;
 		uint8_t *end = buf + nread + left;
 		left = processbuffer(buf, end, lookback, stations);
