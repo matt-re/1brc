@@ -1,6 +1,7 @@
 #include <limits.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,9 +32,9 @@ struct data
 	char *file;
 	struct station *stn;
 	uint8_t *buf;
-	size_t cap;
-	size_t len;
-	size_t off;
+	ptrdiff_t cap;
+	ptrdiff_t len;
+	ptrdiff_t off;
 };
 
 static struct station g_stations[MAX_THREAD][MAX_CAPACITY];
@@ -96,7 +97,7 @@ processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 	}
 }
 
-static size_t
+static ptrdiff_t
 processbuffer(uint8_t *beg, uint8_t *end, bool lookback, struct station *stations)
 {
 	/* shift the beginning and end of the buffer to only read whole lines */
@@ -109,11 +110,11 @@ processbuffer(uint8_t *beg, uint8_t *end, bool lookback, struct station *station
 	while (*--end != '\n');
 	++end;
 	processlines(beg, end, stations);
-	return (size_t)(oldend - end);
+	return oldend - end;
 }
 
 static void
-processfile(char *file, uint8_t *buf, size_t cap, size_t len, size_t offset, struct station *stations)
+processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t offset, struct station *stations)
 {
 	FILE *fp = fopen(file, "rb");
 	if (!fp)
@@ -130,11 +131,11 @@ processfile(char *file, uint8_t *buf, size_t cap, size_t len, size_t offset, str
 		fseek(fp, (long long)(offset - MAX_LINE_LEN), SEEK_SET);
 		len += MAX_LINE_LEN;
 	}
-	size_t left = 0;
+	ptrdiff_t left = 0;
 	do {
-		size_t avail = cap - left;
-		size_t amount = avail < len ? avail : len;
-		size_t nread = fread(buf + left, sizeof *buf, amount, fp);
+		ptrdiff_t avail = cap - left;
+		size_t amount = (size_t)(avail < len ? avail : len);
+		ptrdiff_t nread = (ptrdiff_t)fread(buf + left, 1, amount, fp);
 		len -= nread;
 		uint8_t *end = buf + nread + left;
 		left = processbuffer(buf, end, lookback, stations);
@@ -168,28 +169,28 @@ compare(const void *a, const void *b)
 	return res;
 }
 
-static size_t
+static ptrdiff_t
 getsize(char *file)
 {
-	size_t size = 0;
+	ptrdiff_t size = 0;
 	FILE *fp = fopen(file, "rb");
 	if (fp) {
 		fseek(fp, 0, SEEK_END);
-		long long s = ftell(fp);
+		ptrdiff_t s = ftell(fp);
 		if (s > 0)
-			size = (size_t)s;
+			size = s;
 		fclose(fp);
 	}
 	return size;
 }
 
 static struct station *
-merge(struct station *first, size_t size, size_t count)
+merge(struct station *first, ptrdiff_t size, ptrdiff_t count)
 {
 	struct station *res = first;
 	struct station *src = first + size;
-	size_t n = (count - 1) * size;
-	for (size_t i = 0; i < n; i++, src++) {
+	ptrdiff_t n = (count - 1) * size;
+	for (ptrdiff_t i = 0; i < n; i++, src++) {
 		if (src->cnt) {
 			struct station *dst = find(src->name, src->nname, src->hash, res);
 			dst->cnt += src->cnt;
@@ -213,13 +214,13 @@ int
 main(int argc, char *argv[])
 {
 	char *file = argc > 1 ? argv[1] : "measurements.txt";
-	size_t nfile = getsize(file);
+	ptrdiff_t nfile = getsize(file);
 	if (!nfile)
 		return 1;
-	size_t nbatch = nfile / MAX_THREAD;
+	ptrdiff_t nbatch = nfile / MAX_THREAD;
 	nbatch = nbatch < MAX_LINE_LEN ? MAX_LINE_LEN : nbatch;
-	size_t nthread = nfile / nbatch;
-	for (size_t i = 0, offset = 0; i < nthread; i++, offset += nbatch) {
+	ptrdiff_t nthread = nfile / nbatch;
+	for (ptrdiff_t i = 0, offset = 0; i < nthread; i++, offset += nbatch) {
 		g_data[i] = (struct data){
 			.file = file,
 			.buf  = g_readbuffers[i],
@@ -229,11 +230,11 @@ main(int argc, char *argv[])
 			.stn  = g_stations[i]
 		};
 	}
-	size_t ntail = nfile - nbatch * nthread;
+	ptrdiff_t ntail = nfile - nbatch * nthread;
 	g_data[nthread-1].len += ntail;
-	for (size_t i = 0; i < nthread; i++)
+	for (ptrdiff_t i = 0; i < nthread; i++)
 		pthread_create(&g_threads[i], NULL, threadstart, &g_data[i]);
-	for (size_t i = 0; i < nthread; i++)
+	for (ptrdiff_t i = 0; i < nthread; i++)
 		pthread_join(g_threads[i], NULL);
 	struct station *result = merge(g_stations[0], MAX_CAPACITY, nthread);
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
@@ -241,7 +242,7 @@ main(int argc, char *argv[])
 	float min = result[0].min * 0.1f;
 	float max = result[0].max * 0.1f;
 	printf("{%.*s=%.1f/%.1f/%.1f", result[0].nname, result[0].name, min, avg, max);
-	for (size_t i = 1; (result[i].cnt > 0) && (i < MAX_CAPACITY); i++) {
+	for (ptrdiff_t i = 1; (result[i].cnt > 0) && (i < MAX_CAPACITY); i++) {
 		avg = result[i].sum * 0.1f / result[i].cnt;
 		min = result[i].min * 0.1f;
 		max = result[i].max * 0.1f;
