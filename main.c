@@ -78,6 +78,7 @@ processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 		}
 		int32_t nname = (int32_t)(cur - name);
 		++cur;
+		/* branchless parse of [-]D[D].D into fixed-point int (e.g. "12.3" -> 123) */
 		int32_t neg = *cur == '-';
 		cur += neg;
 		int32_t num = (*cur++ - '0') * 10;
@@ -123,7 +124,7 @@ processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t of
 	 * current batch will only read up to the last \n character, which
 	 * means some characters in the current batch will be ignored. The next
 	 * batch will read characters from the end of the previous batch, at
-	 * most one extea whole line.
+	 * most one extra whole line.
 	 */
 	bool lookback = offset > 0;
 	if (lookback) {
@@ -237,15 +238,15 @@ main(int argc, char *argv[])
 		pthread_join(g_threads[i], NULL);
 	struct station *result = merge(g_stations[0], MAX_CAPACITY, nthread);
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
-	float avg = result[0].sum * 0.1f / result[0].cnt;
-	float min = result[0].min * 0.1f;
-	float max = result[0].max * 0.1f;
-	printf("{%.*s=%.1f/%.1f/%.1f", result[0].nname, result[0].name, min, avg, max);
+	double avg = result[0].sum * 0.1 / result[0].cnt;
+	double min = result[0].min * 0.1;
+	double max = result[0].max * 0.1;
+	printf("{%.*s=%.1f/%.1f/%.1f", result[0].nname, (char *)result[0].name, min, avg, max);
 	for (ptrdiff_t i = 1; (result[i].cnt > 0) && (i < MAX_CAPACITY); i++) {
-		avg = result[i].sum * 0.1f / result[i].cnt;
-		min = result[i].min * 0.1f;
-		max = result[i].max * 0.1f;
-		printf(", %.*s=%.1f/%.1f/%.1f", result[i].nname, result[i].name, min, avg, max);
+		avg = result[i].sum * 0.1 / result[i].cnt;
+		min = result[i].min * 0.1;
+		max = result[i].max * 0.1;
+		printf(", %.*s=%.1f/%.1f/%.1f", result[i].nname, (char *)result[i].name, min, avg, max);
 	}
 	printf("}\n");
 }

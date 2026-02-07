@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -std=c99 -O2 -Wall -Werror -Wextra -pedantic
+CFLAGS = -std=c99 -O3 -march=native -Wall -Werror -Wextra -pedantic
 CFLAGS += -Wshadow
 CFLAGS += -Wconversion
 CFLAGS += -fstrict-aliasing -Wstrict-aliasing
@@ -18,7 +18,7 @@ ifdef MAX_THREAD
 CFLAGS += -DMAX_THREAD=$(MAX_THREAD)
 endif
 
-LDFLAGS = -Wall -pedantic
+LDFLAGS = -Wall -pedantic -pthread
 
 all: 1brc
 
@@ -28,8 +28,8 @@ all: 1brc
 1brc: main.o
 	$(CC) -o $@ $(LDFLAGS) $^
 
-.PHONEY: clean
-.PHONEY: run
+.PHONY: clean
+.PHONY: run
 
 clean:
 	@rm -f 1brc *.o
