@@ -21,7 +21,7 @@ struct station
 	uint64_t hash;
 	int32_t max;
 	int32_t min;
-	int32_t sum;
+	int64_t sum;
 	int32_t cnt;
 	int32_t nname;
 	uint8_t name[100];
@@ -48,7 +48,6 @@ find(uint8_t *name, int32_t nname, uint64_t hash, struct station *stn)
 	uint64_t i = hash & (MAX_CAPACITY - 1);
 	for (;;) {
 		if (!stn[i].cnt) {
-			stn[i].cnt = 0;
 			stn[i].max = INT_MIN;
 			stn[i].min = INT_MAX;
 			stn[i].sum = 0;
@@ -128,7 +127,7 @@ processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t of
 	 */
 	bool lookback = offset > 0;
 	if (lookback) {
-		fseek(fp, (long long)(offset - MAX_LINE_LEN), SEEK_SET);
+		fseek(fp, (long)(offset - MAX_LINE_LEN), SEEK_SET);
 		len += MAX_LINE_LEN;
 	}
 	ptrdiff_t left = 0;
@@ -146,7 +145,7 @@ processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t of
 	fclose(fp);
 }
 
-static int32_t
+static int
 compare(const void *a, const void *b)
 {
 	struct station *x = (struct station *)a;
@@ -175,8 +174,8 @@ getsize(char *file)
 	ptrdiff_t size = 0;
 	FILE *fp = fopen(file, "rb");
 	if (fp) {
-		fseek(fp, 0, SEEK_END);
-		ptrdiff_t s = ftell(fp);
+		fseeko(fp, 0, SEEK_END);
+		ptrdiff_t s = (ptrdiff_t)ftello(fp);
 		if (s > 0)
 			size = s;
 		fclose(fp);
