@@ -46,7 +46,7 @@ static struct station *
 find(uint8_t *name, int32_t nname, uint64_t hash, struct station *stn)
 {
 	uint64_t i = hash & (MAX_CAPACITY - 1);
-	for (;;) {
+	for (int32_t attempt = 0; attempt < MAX_CAPACITY; attempt++) {
 		if (!stn[i].cnt) {
 			stn[i].max = INT_MIN;
 			stn[i].min = INT_MAX;
@@ -54,17 +54,18 @@ find(uint8_t *name, int32_t nname, uint64_t hash, struct station *stn)
 			memcpy(stn[i].name, name, (unsigned)nname);
 			stn[i].nname = nname;
 			stn[i].hash = hash;
-			break;
+			return &stn[i];
 		} else if (stn[i].nname == nname && stn[i].hash == hash && memcmp(stn[i].name, name, (unsigned)nname) == 0) {
-			break;
+			return &stn[i];
 		} else {
 			i = (i + 1) & (MAX_CAPACITY - 1);
 		}
 	}
-	return &stn[i];
+	fprintf(stderr, "hash table full\n");
+	return NULL;
 }
 
-static void
+static bool
 processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 {
 	uint8_t *cur = beg;
@@ -90,11 +91,14 @@ processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 		num *= 1 - (2 * neg);
 		++cur;
 		struct station *stn = find(name, nname, hash, stations);
+		if (!stn)
+			return false;
 		++stn->cnt;
 		stn->max = stn->max > num ? stn->max : num;
 		stn->min = stn->min < num ? stn->min : num;
 		stn->sum += num;
 	}
+	return true;
 }
 
 static ptrdiff_t
@@ -103,22 +107,26 @@ processbuffer(uint8_t *beg, uint8_t *end, bool lookback, struct station *station
 	/* shift the beginning and end of the buffer to only read whole lines */
 	if (lookback) {
 		beg += MAX_LINE_LEN;
-		while (*--beg !='\n');
+		uint8_t *limit = beg - MAX_LINE_LEN;
+		while (beg > limit && *--beg != '\n');
 		++beg;
 	}
 	uint8_t *oldend = end;
-	while (*--end != '\n');
+	while (end > beg && *--end != '\n');
 	++end;
-	processlines(beg, end, stations);
+	if (!processlines(beg, end, stations))
+		return -1;
 	return oldend - end;
 }
 
-static void
+static bool
 processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t offset, struct station *stations)
 {
 	FILE *fp = fopen(file, "rb");
-	if (!fp)
-		return;
+	if (!fp) {
+		perror(file);
+		return false;
+	}
 	/* Each batch after first needs to contain the characters from the
 	 * previous batch to handle a line being split across batches. The
 	 * current batch will only read up to the last \n character, which
@@ -128,7 +136,10 @@ processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t of
 	 */
 	bool lookback = offset > 0;
 	if (lookback) {
-		fseek(fp, (long)(offset - MAX_LINE_LEN), SEEK_SET);
+		if (fseek(fp, (long)(offset - MAX_LINE_LEN), SEEK_SET)) {
+			fclose(fp);
+			return false;
+		}
 		len += MAX_LINE_LEN;
 	}
 	ptrdiff_t left = 0;
@@ -136,14 +147,21 @@ processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t of
 		ptrdiff_t avail = cap - left;
 		ptrdiff_t amount = avail < len ? avail : len;
 		ptrdiff_t nread = (ptrdiff_t)fread(buf + left, 1, (size_t)amount, fp);
+		if (!nread)
+			break;
 		len -= nread;
 		uint8_t *end = buf + nread + left;
 		left = processbuffer(buf, end, lookback, stations);
+		if (left < 0) {
+			fclose(fp);
+			return false;
+		}
 		if (left)
 			memmove(buf, end - left, left);
 		lookback = false;
 	} while (len);
 	fclose(fp);
+	return true;
 }
 
 static int
@@ -193,6 +211,8 @@ merge(struct station *first, ptrdiff_t size, ptrdiff_t count)
 	for (ptrdiff_t i = 0; i < n; i++, src++) {
 		if (src->cnt) {
 			struct station *dst = find(src->name, src->nname, src->hash, res);
+			if (!dst)
+				return NULL;
 			dst->cnt += src->cnt;
 			dst->sum += src->sum;
 			dst->max = dst->max > src->max ? dst->max : src->max;
@@ -206,7 +226,8 @@ static void *
 threadstart(void *arg)
 {
 	struct data *d = arg;
-	processfile(d->file, d->buf, d->cap, d->len, d->off, d->stn);
+	if (!processfile(d->file, d->buf, d->cap, d->len, d->off, d->stn))
+		return NULL;
 	return arg;
 }
 
@@ -232,11 +253,29 @@ main(int argc, char *argv[])
 	}
 	ptrdiff_t ntail = nfile - nbatch * nthread;
 	g_data[nthread-1].len += ntail;
-	for (ptrdiff_t i = 0; i < nthread; i++)
-		pthread_create(&g_threads[i], NULL, threadstart, &g_data[i]);
-	for (ptrdiff_t i = 0; i < nthread; i++)
-		pthread_join(g_threads[i], NULL);
+	for (ptrdiff_t i = 0; i < nthread; i++) {
+		if (pthread_create(&g_threads[i], NULL, threadstart, &g_data[i])) {
+			fprintf(stderr, "pthread_create failed\n");
+			for (ptrdiff_t j = 0; j < i; j++)
+				pthread_join(g_threads[j], NULL);
+			return 1;
+		}
+	}
+	bool ok = true;
+	for (ptrdiff_t i = 0; i < nthread; i++) {
+		void *ret;
+		if (pthread_join(g_threads[i], &ret)) {
+			fprintf(stderr, "pthread_join failed\n");
+			ok = false;
+		} else if (!ret) {
+			ok = false;
+		}
+	}
+	if (!ok)
+		return 1;
 	struct station *result = merge(g_stations[0], MAX_CAPACITY, nthread);
+	if (!result)
+		return 1;
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
 	double avg = result[0].sum * 0.1 / result[0].cnt;
 	double min = result[0].min * 0.1;
