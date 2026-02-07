@@ -306,7 +306,7 @@ main(int argc, char *argv[])
 		return 1;
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
 	/* worst case per entry: ", " (2) + name (100) + "=" + 3 values (5 each) + 2 slashes = 120 */
-	static char out[MAX_CAPACITY * 120 + 4];
+	static char out[MAX_CAPACITY * 120 + 3];
 	char *p = out;
 	*p++ = '{';
 	for (ptrdiff_t i = 0; (result[i].cnt > 0) && (i < MAX_CAPACITY); i++) {
