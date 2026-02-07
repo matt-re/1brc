@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define READ_SIZE	(1 << 23)
 #ifndef MAX_THREAD
@@ -304,17 +305,33 @@ main(int argc, char *argv[])
 	if (!result)
 		return 1;
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
-	char vmin[5], vavg[5], vmax[5];
-	int nmin, navg, nmax;
-	nmin = fmtval(vmin, result[0].min);
-	navg = fmtval(vavg, divround(result[0].sum, result[0].cnt));
-	nmax = fmtval(vmax, result[0].max);
-	printf("{%.*s=%.*s/%.*s/%.*s", result[0].nname, (char *)result[0].name, nmin, vmin, navg, vavg, nmax, vmax);
-	for (ptrdiff_t i = 1; (result[i].cnt > 0) && (i < MAX_CAPACITY); i++) {
-		nmin = fmtval(vmin, result[i].min);
-		navg = fmtval(vavg, divround(result[i].sum, result[i].cnt));
-		nmax = fmtval(vmax, result[i].max);
-		printf(", %.*s=%.*s/%.*s/%.*s", result[i].nname, (char *)result[i].name, nmin, vmin, navg, vavg, nmax, vmax);
+	/* worst case per entry: ", " (2) + name (100) + "=" + 3 values (5 each) + 2 slashes = 120 */
+	static char out[MAX_CAPACITY * 120 + 4];
+	char *p = out;
+	char val[5];
+	int n;
+	*p++ = '{';
+	for (ptrdiff_t i = 0; (result[i].cnt > 0) && (i < MAX_CAPACITY); i++) {
+		if (i > 0) {
+			*p++ = ',';
+			*p++ = ' ';
+		}
+		memcpy(p, result[i].name, (size_t)result[i].nname);
+		p += result[i].nname;
+		*p++ = '=';
+		n = fmtval(val, result[i].min);
+		memcpy(p, val, (size_t)n);
+		p += n;
+		*p++ = '/';
+		n = fmtval(val, divround(result[i].sum, result[i].cnt));
+		memcpy(p, val, (size_t)n);
+		p += n;
+		*p++ = '/';
+		n = fmtval(val, result[i].max);
+		memcpy(p, val, (size_t)n);
+		p += n;
 	}
-	printf("}\n");
+	*p++ = '}';
+	*p++ = '\n';
+	write(STDOUT_FILENO, out, (size_t)(p - out));
 }
