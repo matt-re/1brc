@@ -308,28 +308,25 @@ main(int argc, char *argv[])
 	/* worst case per entry: ", " (2) + name (100) + "=" + 3 values (5 each) + 2 slashes = 120 */
 	static char out[MAX_CAPACITY * 120 + 4];
 	char *p = out;
-	char val[5];
-	int n;
 	*p++ = '{';
 	for (ptrdiff_t i = 0; (result[i].cnt > 0) && (i < MAX_CAPACITY); i++) {
+		char str[120];
+		char *s = str;
 		if (i > 0) {
-			*p++ = ',';
-			*p++ = ' ';
+			*s++ = ',';
+			*s++ = ' ';
 		}
-		memcpy(p, result[i].name, (size_t)result[i].nname);
-		p += result[i].nname;
-		*p++ = '=';
-		n = fmtval(val, result[i].min);
-		memcpy(p, val, (size_t)n);
-		p += n;
-		*p++ = '/';
-		n = fmtval(val, divround(result[i].sum, result[i].cnt));
-		memcpy(p, val, (size_t)n);
-		p += n;
-		*p++ = '/';
-		n = fmtval(val, result[i].max);
-		memcpy(p, val, (size_t)n);
-		p += n;
+		memcpy(s, result[i].name, (size_t)result[i].nname);
+		s += result[i].nname;
+		*s++ = '=';
+		s += fmtval(s, result[i].min);
+		*s++ = '/';
+		s += fmtval(s, divround(result[i].sum, result[i].cnt));
+		*s++ = '/';
+		s += fmtval(s, result[i].max);
+		ptrdiff_t len = s - str;
+		memcpy(p, str, (size_t)len);
+		p += len;
 	}
 	*p++ = '}';
 	*p++ = '\n';
