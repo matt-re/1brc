@@ -165,6 +165,33 @@ processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t of
 }
 
 static int
+fmtval(char *buf, int32_t val)
+{
+	char *p = buf;
+	if (val < 0) {
+		*p++ = '-';
+		val = -val;
+	}
+	int32_t whole = val / 10;
+	if (whole >= 10)
+		*p++ = (char)('0' + whole / 10);
+	*p++ = (char)('0' + whole % 10);
+	*p++ = '.';
+	*p++ = (char)('0' + val % 10);
+	return (int)(p - buf);
+}
+
+static int32_t
+divround(int64_t sum, int32_t cnt)
+{
+	/* HALF_UP: round 0.5 away from zero */
+	if (sum >= 0)
+		return (int32_t)((sum + cnt / 2) / cnt);
+	else
+		return (int32_t)(-((-sum + cnt / 2) / cnt));
+}
+
+static int
 compare(const void *a, const void *b)
 {
 	struct station *x = (struct station *)a;
@@ -277,15 +304,17 @@ main(int argc, char *argv[])
 	if (!result)
 		return 1;
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
-	double avg = result[0].sum * 0.1 / result[0].cnt;
-	double min = result[0].min * 0.1;
-	double max = result[0].max * 0.1;
-	printf("{%.*s=%.1f/%.1f/%.1f", result[0].nname, (char *)result[0].name, min, avg, max);
+	char vmin[5], vavg[5], vmax[5];
+	int nmin, navg, nmax;
+	nmin = fmtval(vmin, result[0].min);
+	navg = fmtval(vavg, divround(result[0].sum, result[0].cnt));
+	nmax = fmtval(vmax, result[0].max);
+	printf("{%.*s=%.*s/%.*s/%.*s", result[0].nname, (char *)result[0].name, nmin, vmin, navg, vavg, nmax, vmax);
 	for (ptrdiff_t i = 1; (result[i].cnt > 0) && (i < MAX_CAPACITY); i++) {
-		avg = result[i].sum * 0.1 / result[i].cnt;
-		min = result[i].min * 0.1;
-		max = result[i].max * 0.1;
-		printf(", %.*s=%.1f/%.1f/%.1f", result[i].nname, (char *)result[i].name, min, avg, max);
+		nmin = fmtval(vmin, result[i].min);
+		navg = fmtval(vavg, divround(result[i].sum, result[i].cnt));
+		nmax = fmtval(vmax, result[i].max);
+		printf(", %.*s=%.*s/%.*s/%.*s", result[i].nname, (char *)result[i].name, nmin, vmin, navg, vavg, nmax, vmax);
 	}
 	printf("}\n");
 }
