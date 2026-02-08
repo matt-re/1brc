@@ -1,3 +1,4 @@
+#include <arm_acle.h>
 #include <limits.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -14,19 +15,22 @@
 #endif /* MAX_THREAD */
 #define MAX_LINE_LEN	107
 #define MAX_CAPACITY	(1 << 15)
-#define FNV1A_OFFSET	UINT64_C(14695981039346656037)
-#define FNV1A_PRIME	UINT64_C(1099511628211)
+
+#define SEMICOLON_BROADCAST	UINT64_C(0x3B3B3B3B3B3B3B3B)
+#define LO_MAGIC		UINT64_C(0x0101010101010101)
+#define HI_MAGIC		UINT64_C(0x8080808080808080)
 
 struct station
 {
 	int64_t sum;
-	uint64_t hash;
+	uint32_t hash;
 	int16_t max;
 	int16_t min;
 	int32_t cnt;
 	uint8_t nname;
 	uint8_t name[100];
 };
+_Static_assert(sizeof(struct station) == 128, "station must be 128 bytes");
 
 struct data
 {
@@ -44,9 +48,9 @@ static pthread_t g_threads[MAX_THREAD];
 static struct data g_data[MAX_THREAD];
 
 static struct station *
-find(uint8_t *name, uint8_t nname, uint64_t hash, struct station *stn)
+find(uint8_t *name, uint8_t nname, uint32_t hash, struct station *stn)
 {
-	uint64_t i = hash & (MAX_CAPACITY - 1);
+	uint32_t i = hash & (MAX_CAPACITY - 1);
 	for (;;) {
 		if (!stn[i].cnt) {
 			stn[i].max = INT16_MIN;
@@ -71,11 +75,21 @@ processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 	uint8_t *cur = beg;
 	while (cur < end) {
 		uint8_t *name = cur;
-		uint64_t hash = FNV1A_OFFSET;
-		while (*cur != ';') {
-			hash ^= *cur;
-			hash *= FNV1A_PRIME;
-			++cur;
+		uint32_t hash = 0;
+		for (;;) {
+			uint64_t word;
+			memcpy(&word, cur, 8);
+			uint64_t xor = word ^ SEMICOLON_BROADCAST;
+			uint64_t match = (xor - LO_MAGIC) & ~xor & HI_MAGIC;
+			if (match) {
+				uint32_t pos = (uint32_t)(__builtin_ctzll(match) >> 3);
+				for (uint32_t i = 0; i < pos; i++)
+					hash = __crc32cb(hash, cur[i]);
+				cur += pos;
+				break;
+			}
+			hash = __crc32cd(hash, word);
+			cur += 8;
 		}
 		uint8_t nname = (uint8_t)(cur - name);
 		++cur;
@@ -176,11 +190,11 @@ fmtval(char *buf, int32_t val)
 static int32_t
 divround(int64_t sum, int32_t cnt)
 {
-	/* HALF_UP: round 0.5 away from zero */
+	/* IEEE 754 roundTowardPositive (ceiling) */
 	if (sum >= 0)
-		return (int32_t)((sum + cnt / 2) / cnt);
+		return (int32_t)((sum + cnt - 1) / cnt);
 	else
-		return (int32_t)(-((-sum + cnt / 2) / cnt));
+		return (int32_t)(sum / cnt);
 }
 
 static int

@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -std=c99 -O3 -march=native -Wall -Werror -Wextra -pedantic
+CFLAGS = -std=c11 -O3 -march=native -Wall -Werror -Wextra -pedantic
 CFLAGS += -Wshadow
 CFLAGS += -Wconversion
 CFLAGS += -fstrict-aliasing -Wstrict-aliasing
