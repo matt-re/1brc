@@ -19,12 +19,12 @@
 
 struct station
 {
-	uint64_t hash;
-	int32_t max;
-	int32_t min;
 	int64_t sum;
+	uint64_t hash;
+	int16_t max;
+	int16_t min;
 	int32_t cnt;
-	int32_t nname;
+	uint8_t nname;
 	uint8_t name[100];
 };
 
@@ -44,29 +44,28 @@ static pthread_t g_threads[MAX_THREAD];
 static struct data g_data[MAX_THREAD];
 
 static struct station *
-find(uint8_t *name, int32_t nname, uint64_t hash, struct station *stn)
+find(uint8_t *name, uint8_t nname, uint64_t hash, struct station *stn)
 {
 	uint64_t i = hash & (MAX_CAPACITY - 1);
-	for (int32_t attempt = 0; attempt < MAX_CAPACITY; attempt++) {
+	for (;;) {
 		if (!stn[i].cnt) {
-			stn[i].max = INT_MIN;
-			stn[i].min = INT_MAX;
+			stn[i].max = INT16_MIN;
+			stn[i].min = INT16_MAX;
 			stn[i].sum = 0;
-			memcpy(stn[i].name, name, (unsigned)nname);
+			memcpy(stn[i].name, name, nname);
 			stn[i].nname = nname;
 			stn[i].hash = hash;
-			return &stn[i];
-		} else if (stn[i].nname == nname && stn[i].hash == hash && memcmp(stn[i].name, name, (unsigned)nname) == 0) {
-			return &stn[i];
+			break;
+		} else if (stn[i].nname == nname && stn[i].hash == hash && memcmp(stn[i].name, name, nname) == 0) {
+			break;
 		} else {
 			i = (i + 1) & (MAX_CAPACITY - 1);
 		}
 	}
-	fprintf(stderr, "hash table full\n");
-	return NULL;
+	return &stn[i];
 }
 
-static bool
+static void
 processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 {
 	uint8_t *cur = beg;
@@ -78,7 +77,7 @@ processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 			hash *= FNV1A_PRIME;
 			++cur;
 		}
-		int32_t nname = (int32_t)(cur - name);
+		uint8_t nname = (uint8_t)(cur - name);
 		++cur;
 		/* branchless parse of [-]D[D].D into fixed-point int (e.g. "12.3" -> 123) */
 		int32_t neg = *cur == '-';
@@ -92,14 +91,11 @@ processlines(uint8_t *beg, uint8_t *end, struct station *stations)
 		num *= 1 - (2 * neg);
 		++cur;
 		struct station *stn = find(name, nname, hash, stations);
-		if (!stn)
-			return false;
 		++stn->cnt;
-		stn->max = stn->max > num ? stn->max : num;
-		stn->min = stn->min < num ? stn->min : num;
+		stn->max = (int16_t)(stn->max > num ? stn->max : num);
+		stn->min = (int16_t)(stn->min < num ? stn->min : num);
 		stn->sum += num;
 	}
-	return true;
 }
 
 static ptrdiff_t
@@ -115,8 +111,7 @@ processbuffer(uint8_t *beg, uint8_t *end, bool lookback, struct station *station
 	uint8_t *oldend = end;
 	while (end > beg && *--end != '\n');
 	++end;
-	if (!processlines(beg, end, stations))
-		return -1;
+	processlines(beg, end, stations);
 	return oldend - end;
 }
 
@@ -153,10 +148,6 @@ processfile(char *file, uint8_t *buf, ptrdiff_t cap, ptrdiff_t len, ptrdiff_t of
 		len -= nread;
 		uint8_t *end = buf + nread + left;
 		left = processbuffer(buf, end, lookback, stations);
-		if (left < 0) {
-			fclose(fp);
-			return false;
-		}
 		if (left)
 			memmove(buf, end - left, left);
 		lookback = false;
@@ -205,12 +196,12 @@ compare(const void *a, const void *b)
 	else if (y->cnt == 0)
 		res = -1;
 	else {
-		int32_t n1 = x->nname;
-		int32_t n2 = y->nname;
-		int32_t minn = n1 < n2 ? n1 : n2;
-		res = memcmp(x->name, y->name, (unsigned)minn);
+		uint8_t n1 = x->nname;
+		uint8_t n2 = y->nname;
+		uint8_t minn = n1 < n2 ? n1 : n2;
+		res = memcmp(x->name, y->name, minn);
 		if (res == 0)
-			res = n1 - n2;
+			res = (int)n1 - (int)n2;
 	}
 	return res;
 }
@@ -239,12 +230,10 @@ merge(struct station *first, ptrdiff_t size, ptrdiff_t count)
 	for (ptrdiff_t i = 0; i < n; i++, src++) {
 		if (src->cnt) {
 			struct station *dst = find(src->name, src->nname, src->hash, res);
-			if (!dst)
-				return NULL;
 			dst->cnt += src->cnt;
 			dst->sum += src->sum;
-			dst->max = dst->max > src->max ? dst->max : src->max;
-			dst->min = dst->min < src->min ? dst->min : src->min;
+			dst->max = (int16_t)(dst->max > src->max ? dst->max : src->max);
+			dst->min = (int16_t)(dst->min < src->min ? dst->min : src->min);
 		}
 	}
 	return res;
@@ -302,8 +291,6 @@ main(int argc, char *argv[])
 	if (!ok)
 		return 1;
 	struct station *result = merge(g_stations[0], MAX_CAPACITY, nthread);
-	if (!result)
-		return 1;
 	qsort(result, MAX_CAPACITY, sizeof *result, compare);
 	/* worst case per entry: ", " (2) + name (100) + "=" + 3 values (5 each) + 2 slashes = 120 */
 	static char out[MAX_CAPACITY * 120 + 3];
@@ -316,7 +303,7 @@ main(int argc, char *argv[])
 			*s++ = ',';
 			*s++ = ' ';
 		}
-		memcpy(s, result[i].name, (size_t)result[i].nname);
+		memcpy(s, result[i].name, result[i].nname);
 		s += result[i].nname;
 		*s++ = '=';
 		s += fmtval(s, result[i].min);
