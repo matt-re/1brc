@@ -20,7 +20,7 @@ endif
 
 LDFLAGS = -Wall -pedantic -pthread
 
-all: 1brc
+all: 1brc gen1e9
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
@@ -28,11 +28,17 @@ all: 1brc
 1brc: main.o
 	$(CC) -o $@ $(LDFLAGS) $^
 
+gen1e9: gen1e9.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+measurements1e9.txt: gen1e9
+	./gen1e9 > $@
+
 .PHONY: clean
 .PHONY: run
 
 clean:
-	@rm -f 1brc *.o
+	@rm -f 1brc gen1e9 *.o
 
 run: 1brc
 	./1brc
